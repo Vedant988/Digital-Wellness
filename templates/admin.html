@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Digital Wellness Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+        
+        .header {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #dc3545;
+            font-size: 1.5rem;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .admin-badge {
+            background: #dc3545;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .logout-btn {
+            padding: 0.5rem 1rem;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background: #5a6268;
+        }
+        
+        .main-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .stats-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .search-section {
+            background: white;
+            padding: 1.5rem 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .search-btn {
+            padding: 0.75rem 1.5rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .search-btn:hover {
+            background: #5a67d8;
+        }
+        
+        .clear-btn {
+            padding: 0.75rem 1rem;
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: background 0.3s;
+        }
+        
+        .clear-btn:hover {
+            background: #5a6268;
+        }
+        
+        .legend {
+            background: white;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .legend h3 {
+            margin-bottom: 1rem;
+            color: #495057;
+        }
+        
+        .legend-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+        
+        .legend-high {
+            background-color: #ffebee;
+            border: 2px solid #f44336;
+        }
+        
+        .legend-no-data {
+            background-color: #fff8e1;
+            border: 2px solid #ff9800;
+        }
+        
+        .legend-normal {
+            background-color: transparent;
+        }
+        
+        .students-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .students-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .students-table th,
+        .students-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .students-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        .students-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        /* Attention highlighting */
+        .attention-high-screentime {
+            background-color: #ffebee !important;
+            border-left: 4px solid #f44336;
+        }
+        
+        .attention-no-submissions {
+            background-color: #fff8e1 !important;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .view-btn {
+            padding: 0.5rem 1rem;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+        
+        .view-btn:hover {
+            background: #5a67d8;
+        }
+        
+        .roll-number {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.9rem;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .status-high {
+            background: #f44336;
+            color: white;
+        }
+        
+        .status-no-data {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .status-normal {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .weekly-avg {
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .no-students {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+        
+        .no-students h3 {
+            margin-bottom: 1rem;
+            color: #999;
+        }
+        
+        .search-results-info {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #e3f2fd;
+            border-radius: 5px;
+            color: #1976d2;
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+            
+            .main-content {
+                padding: 1rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .search-form {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .legend-items {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .students-table {
+                font-size: 0.9rem;
+            }
+            
+            .students-table th,
+            .students-table td {
+                padding: 0.75rem 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Admin Panel</h1>
+        <div class="user-info">
+            <span class="admin-badge">ADMIN</span>
+            <span>{{ admin.email }}</span>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="stats-section">
+            <h2>Overview</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">{{ students|length }}</div>
+                    <div class="stat-label">Total Students</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">
+                        {{ students|selectattr("attention_status", "equalto", "high_screentime")|list|length }}
+                    </div>
+                    <div class="stat-label">High Screen Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">
+                        {{ students|selectattr("attention_status", "equalto", "no_submissions")|list|length }}
+                    </div>
+                    <div class="stat-label">No Recent Data</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">
+                        {{ students|selectattr("attention_status", "equalto", "normal")|list|length }}
+                    </div>
+                    <div class="stat-label">Healthy Usage</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="search-section">
+            <h3>Search Students</h3>
+            <form class="search-form" method="get" action="/admin">
+                <input 
+                    type="text" 
+                    name="search" 
+                    class="search-input" 
+                    placeholder="Search by email or roll number (e.g., bt23eci012)" 
+                    value="{{ search_query }}"
+                >
+                <button type="submit" class="search-btn">Search</button>
+                {% if search_query %}
+                <a href="/admin" class="clear-btn">Clear</a>
+                {% endif %}
+            </form>
+            {% if search_query %}
+            <div class="search-results-info">
+                Showing {{ students|length }} result(s) for "{{ search_query }}"
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="legend">
+            <h3>Student Status Legend</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color legend-high"></div>
+                    <span>High Screen Time (>8h weekly average)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-no-data"></div>
+                    <span>No Recent Submissions (7+ days)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-normal"></div>
+                    <span>Normal Usage</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="students-section">
+            <h2>Student Management</h2>
+            {% if students %}
+            <table class="students-table">
+                <thead>
+                    <tr>
+                        <th>Roll Number</th>
+                        <th>Email</th>
+                        <th>Registration Date</th>
+                        <th>Weekly Average</th>
+                        <th>Days Logged</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr class="{% if student.attention_status == 'high_screentime' %}attention-high-screentime{% elif student.attention_status == 'no_submissions' %}attention-no-submissions{% endif %}">
+                        <td>
+                            {% if student.roll_number %}
+                            <span class="roll-number">{{ student.roll_number.upper() }}</span>
+                            {% else %}
+                            <span style="color: #999;">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ student.email }}</td>
+                        <td>
+                            {% if student.created_at %}
+                            {{ student.created_at.strftime('%Y-%m-%d') }}
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </td>
+                        <td class="weekly-avg">
+                            {% if student.weekly_average_minutes > 0 %}
+                            {% set hours = student.weekly_average_minutes // 60 %}
+                            {% set minutes = student.weekly_average_minutes % 60 %}
+                            {% if hours > 0 and minutes > 0 %}
+                            {{ hours }}h {{ minutes }}m
+                            {% elif hours > 0 %}
+                            {{ hours }}h
+                            {% else %}
+                            {{ minutes }}m
+                            {% endif %}
+                            {% else %}
+                            0m
+                            {% endif %}
+                        </td>
+                        <td>{{ student.days_logged_this_week }}/7</td>
+                        <td>
+                            {% if student.attention_status == 'high_screentime' %}
+                            <span class="status-badge status-high">HIGH USAGE</span>
+                            {% elif student.attention_status == 'no_submissions' %}
+                            <span class="status-badge status-no-data">NO DATA</span>
+                            {% else %}
+                            <span class="status-badge status-normal">NORMAL</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/admin/student/{{ student.email }}" class="view-btn">View Data</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="no-students">
+                <h3>No Students Found</h3>
+                {% if search_query %}
+                <p>No students match your search criteria. <a href="/admin">View all students</a></p>
+                {% else %}
+                <p>Students can register using their @iiitn.ac.in email addresses.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

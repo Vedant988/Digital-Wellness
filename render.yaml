@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: digital-wellness-monitor
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: SECRET_KEY
+        sync: false
+      - key: MONGO_DETAILS
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
