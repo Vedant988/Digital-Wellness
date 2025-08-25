@@ -415,7 +415,7 @@
       </button>
     </div>
     
-    <!-- Login Form -->
+    <!-- Login Form (Unchanged) -->
     <form class="form active" id="login-form" method="post" action="/token">
       <div class="form-group">
         <label for="login-email">
@@ -426,7 +426,7 @@
           type="email" 
           id="login-email" 
           name="username" 
-          placeholder="your.name@iiitn.ac.in" 
+          placeholder="i.e. bt23eci012@iiitn.ac.in" 
           required
           autocomplete="email"
         >
@@ -451,8 +451,8 @@
       </button>
     </form>
     
-    <!-- Register Form -->
-    <form class="form" id="register-form" method="post" action="/register">
+    <!-- Register Form (Updated for OTP Flow) -->
+    <form class="form" id="register-form" method="post" action="/initiate-registration">
       <div class="form-group">
         <label for="register-email">
           <i class="fas fa-envelope"></i>
@@ -462,36 +462,22 @@
           type="email" 
           id="register-email" 
           name="email" 
-          placeholder="your.name@iiitn.ac.in" 
+          placeholder="i.e. bt23eci012@iiitn.ac.in" 
           required
           autocomplete="email"
         >
       </div>
-      <div class="form-group">
-        <label for="register-password">
-          <i class="fas fa-lock"></i>
-          Password
-        </label>
-        <input 
-          type="password" 
-          id="register-password" 
-          name="password" 
-          placeholder="Create a strong password (min 6 characters)"
-          required 
-          minlength="6"
-          autocomplete="new-password"
-        >
-      </div>
+      <!-- Password field is removed for OTP flow -->
       <button type="submit" class="submit-btn" id="register-btn">
-        <i class="fas fa-user-plus"></i>
-        Create Account
+        <i class="fas fa-paper-plane"></i>
+        Send Verification Code
       </button>
       <div class="note">
         <strong>
           <i class="fas fa-info-circle"></i>
           Registration Note:
         </strong>
-        Only @iiitn.ac.in email addresses are allowed. The first registered user becomes admin.
+        Only @iiitn.ac.in email addresses are allowed. A verification code will be sent to your email.
       </div>
     </form>
   </div>
@@ -519,13 +505,15 @@
     document.getElementById('login-form').addEventListener('submit', function(e) {
       const btn = document.getElementById('login-btn');
       btn.classList.add('loading');
+      btn.disabled = true; // Prevent multiple clicks
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
     });
     
     document.getElementById('register-form').addEventListener('submit', function(e) {
       const btn = document.getElementById('register-btn');
       btn.classList.add('loading');
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
+      btn.disabled = true; // Prevent multiple clicks
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending Code...';
     });
     
     // Enhanced alert handling
@@ -535,7 +523,9 @@
         alert.style.opacity = '0';
         alert.style.transform = 'translateY(-20px)';
         setTimeout(() => {
-          alert.style.display = 'none';
+          if (alert.parentNode) {
+             alert.parentNode.removeChild(alert);
+          }
         }, 300);
       });
     }
@@ -565,4 +555,5 @@
     });
   </script>
 </body>
+
 </html>

@@ -3,10 +3,12 @@ import datetime
 import base64
 import json
 import re
+import random
 from typing import Dict, List, Optional
 
 # --- Pydantic for Settings Management ---
 from pydantic_settings import BaseSettings
+from pydantic import EmailStr
 
 # --- FastAPI Imports ---
 from fastapi import (
@@ -28,6 +30,9 @@ import motor.motor_asyncio
 # --- AI Service Imports ---
 from groq import AsyncGroq
 
+# --- Email Service Imports ---
+from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
+
 # =============================================================================
 # 1. CONFIGURATION (using Pydantic)
 # =============================================================================
@@ -38,6 +43,17 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     MONGO_DETAILS: str = "mongodb://localhost:27017"
     GROQ_API_KEY: str = "your-groq-api-key"
+
+    # --- Email Settings ---
+    # IMPORTANT: Use a Google App Password if using Gmail.
+    # https://support.google.com/accounts/answer/185833
+    MAIL_USERNAME: str = "your-email@gmail.com"
+    MAIL_PASSWORD: str = "your-google-app-password"
+    MAIL_FROM: EmailStr = "your-email@gmail.com"
+    MAIL_PORT: int = 587
+    MAIL_SERVER: str = "smtp.gmail.com"
+    MAIL_STARTTLS: bool = True
+    MAIL_SSL_TLS: bool = False
 
     class Config:
         env_file = ".env"
@@ -52,13 +68,26 @@ app = FastAPI(title="Digital Wellness Monitor")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# --- Email Configuration for fastapi-mail ---
+conf = ConnectionConfig(
+    MAIL_USERNAME = settings.MAIL_USERNAME,
+    MAIL_PASSWORD = settings.MAIL_PASSWORD,
+    MAIL_FROM = settings.MAIL_FROM,
+    MAIL_PORT = settings.MAIL_PORT,
+    MAIL_SERVER = settings.MAIL_SERVER,
+    MAIL_STARTTLS = settings.MAIL_STARTTLS,
+    MAIL_SSL_TLS = settings.MAIL_SSL_TLS,
+    USE_CREDENTIALS = True,
+    VALIDATE_CERTS = True
+)
+
 # =============================================================================
 # 2. DATABASE SETUP
 # =============================================================================
 @app.on_event("startup")
 async def startup_db_client():
     app.mongodb_client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGO_DETAILS)
-    app.mongodb = app.mongodb_client.get_database("wellness_dbi")
+    app.mongodb = app.mongodb_client.get_database("wellness_db")
     # Initialize Groq client on startup
     app.groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
@@ -101,7 +130,7 @@ First, determine if this is a valid 'Digital Wellbeing' (Android) or 'Screen Tim
   {{"error": "Validation Failed: The uploaded image does not appear to be a valid screen time screenshot."}}
 
 - If it IS a valid report, extract the following information:
-  1. The date shown on the screen. Format it as 'day,month,date'. If the year is not visible, assume the current year, {current_year}.
+  1. The date shown on the screen. Format it as 'day,month date'. If the year is not visible, assume the current year, {current_year}.
   2. The total screen time for that day. Express it as a string like 'Xh Ym'.
   3. The top 3 most used apps and their specific usage times.
 
@@ -127,7 +156,7 @@ Do not include any other text, explanations, or markdown formatting. Your entire
                     ],
                 },
             ],
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            model="llama3-70b-8192",
             temperature=0.0,
             max_tokens=1024,
         )
@@ -135,11 +164,9 @@ Do not include any other text, explanations, or markdown formatting. Your entire
         response_text = chat_completion.choices[0].message.content
         data = json.loads(response_text)
 
-        # Handle validation error returned by the AI
         if "error" in data:
             raise ValueError(data["error"])
 
-        # Final check for required keys in a successful response
         if not all(k in data for k in ["date", "totalScreenTime", "topApps"]):
             raise ValueError("AI failed to return the data in the expected format.")
 
@@ -148,7 +175,6 @@ Do not include any other text, explanations, or markdown formatting. Your entire
     except json.JSONDecodeError:
         raise ValueError("AI response was not valid JSON. Please try again.")
     except Exception as e:
-        # Re-raise ValueErrors, otherwise provide a generic message
         if isinstance(e, ValueError):
             raise e
         print(f"Groq API Error: {e}")
@@ -183,7 +209,7 @@ async def get_current_user(request: Request):
     except JWTError:
         return None
     
-    user = await get_user_collection().find_one({"email": email})
+    user = await get_user_collection().find_one({"email": email, "is_verified": True})
     return user
 
 async def get_current_user_required(request: Request):
@@ -204,6 +230,36 @@ async def get_current_admin(request: Request):
 # =============================================================================
 # 5. UTILITY FUNCTIONS
 # =============================================================================
+def generate_otp() -> str:
+    """Generates a 6-digit OTP."""
+    return str(random.randint(100000, 999999))
+
+async def send_otp_email(email: str, otp: str):
+    """Sends the OTP to the user's email."""
+    html = f"""
+    <html>
+        <body>
+            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+                <h2>Digital Wellness Monitor Verification</h2>
+                <p>Hello,</p>
+                <p>Thank you for registering. Please use the following verification code to complete your registration. The code is valid for 10 minutes.</p>
+                <p style="font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #333;">{otp}</p>
+                <p>If you did not request this code, please ignore this email.</p>
+                <hr>
+                <p><small>This is an automated message. Please do not reply.</small></p>
+            </div>
+        </body>
+    </html>
+    """
+    message = MessageSchema(
+        subject="Your Verification Code",
+        recipients=[email],
+        body=html,
+        subtype="html"
+    )
+    fm = FastMail(conf)
+    await fm.send_message(message)
+
 def parse_time_to_minutes(time_str: str) -> int:
     """Convert time string like '2h 30m' to minutes"""
     time_str = time_str.lower().replace(" ", "")
@@ -251,8 +307,6 @@ async def calculate_weekly_stats(user_email: str, target_week_start: datetime.da
     The average is now dynamic based on the number of days logged.
     """
     week_end = target_week_start + datetime.timedelta(days=6)
-
-    # Fetch all relevant entries for the week in one query
     cursor = get_screentime_collection().find({
         "user_email": user_email,
         "date": {
@@ -261,23 +315,17 @@ async def calculate_weekly_stats(user_email: str, target_week_start: datetime.da
         }
     })
     entries = await cursor.to_list(length=None)
-
-    # Create a dictionary for quick, O(1) lookups by date
     entry_map = {entry["date"]: entry for entry in entries}
-
     total_minutes = 0
     daily_data = []
 
-    # Always loop through all 7 days of the week to build the graph data
     for i in range(7):
         current_date = target_week_start + datetime.timedelta(days=i)
         date_str = current_date.strftime("%Y-%m-%d")
         entry = entry_map.get(date_str)
-
         minutes = 0
         if entry and "totalScreenTime" in entry:
             minutes = parse_time_to_minutes(entry.get("totalScreenTime", "0m"))
-
         total_minutes += minutes
         daily_data.append({
             "day": current_date.strftime("%a"),
@@ -285,21 +333,13 @@ async def calculate_weekly_stats(user_email: str, target_week_start: datetime.da
             "minutes": minutes
         })
 
-    # --- START OF CHANGES ---
-
-    # The number of days logged is the length of the entries list
     days_logged = len(entries)
-
-    # Calculate the average dynamically.
-    # If days_logged is 0, the average is 0 to prevent a ZeroDivisionError.
     average_minutes = total_minutes // days_logged if days_logged > 0 else 0
-
-    # --- END OF CHANGES ---
 
     return {
         "average_minutes": average_minutes,
         "total_minutes": total_minutes,
-        "days_logged": days_logged, # Use the new variable here
+        "days_logged": days_logged,
         "daily_data": daily_data
     }
 
@@ -308,11 +348,9 @@ async def get_student_attention_status(user_email: str):
     today = datetime.date.today()
     current_week_start = today - datetime.timedelta(days=today.weekday())
     
-    # Check for high screen time (over 8 hours average)
     current_week_stats = await calculate_weekly_stats(user_email, current_week_start)
-    high_screen_time = current_week_stats["average_minutes"] > 480  # 8 hours = 480 minutes
+    high_screen_time = current_week_stats["average_minutes"] > 480  # 8 hours
     
-    # Check for no recent submissions (last 7 days)
     seven_days_ago = today - datetime.timedelta(days=7)
     recent_entry = await get_screentime_collection().find_one({
         "user_email": user_email,
@@ -347,33 +385,25 @@ async def read_root(request: Request, message: Optional[str] = Query(None), erro
 async def view_dashboard(request: Request, user: dict = Depends(get_current_user_required), message: Optional[str] = Query(None), error: Optional[str] = Query(None)):
     cursor = get_screentime_collection().find({"user_email": user["email"]}).sort("date", -1)
     user_data = await cursor.to_list(length=100)
-
     return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "user": user,
-        "data": user_data,
-        "message": message,
-        "error": error
+        "request": request, "user": user, "data": user_data,
+        "message": message, "error": error
     })
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, admin: dict = Depends(get_current_admin), search: Optional[str] = Query(None)):
-    # Get all students from the database
-    cursor = get_user_collection().find({"is_admin": {"$ne": True}})
+    cursor = get_user_collection().find({"is_admin": {"$ne": True}, "is_verified": True})
     all_students = await cursor.to_list(length=None)
-
-    # Filter students in Python before making expensive async calls
     students_to_process = []
     if search:
         search_lower = search.lower()
         for student in all_students:
             roll_number = extract_roll_number(student["email"])
-            if search_lower in student["email"].lower() or search_lower in roll_number.lower():
+            if search_lower in student["email"].lower() or search_lower in roll_number:
                 students_to_process.append(student)
     else:
         students_to_process = all_students
 
-    # Now, enhance only the necessary students
     enhanced_students = []
     for student in students_to_process:
         attention_status = await get_student_attention_status(student["email"])
@@ -386,29 +416,24 @@ async def admin_dashboard(request: Request, admin: dict = Depends(get_current_ad
         })
 
     return templates.TemplateResponse("admin.html", {
-        "request": request,
-        "admin": admin,
-        "students": enhanced_students,
+        "request": request, "admin": admin, "students": enhanced_students,
         "search_query": search or ""
     })
 
 @app.get("/admin/student/{student_email}", response_class=HTMLResponse)
 async def view_student_data(request: Request, student_email: str, admin: dict = Depends(get_current_admin)):
-    # Get student info
     student = await get_user_collection().find_one({"email": student_email})
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     
-    # Get student's screen time data
     cursor = get_screentime_collection().find({"user_email": student_email}).sort("date", -1)
     student_data = await cursor.to_list(length=100)
     
-    # Calculate weekly progress for multiple weeks
     today = datetime.date.today()
     current_week_start = today - datetime.timedelta(days=today.weekday())
     
     weeks_data = []
-    for week_offset in range(4):  # Get last 4 weeks
+    for week_offset in range(4):
         week_start = current_week_start - datetime.timedelta(days=7 * week_offset)
         week_stats = await calculate_weekly_stats(student_email, week_start)
         weeks_data.append({
@@ -417,7 +442,6 @@ async def view_student_data(request: Request, student_email: str, admin: dict = 
             **week_stats
         })
     
-    # Calculate percentage change between current and previous week
     percentage_change = 0
     if len(weeks_data) >= 2 and weeks_data[1]["average_minutes"] > 0:
         current_avg = weeks_data[0]["average_minutes"]
@@ -425,63 +449,87 @@ async def view_student_data(request: Request, student_email: str, admin: dict = 
         percentage_change = ((current_avg - previous_avg) / previous_avg) * 100
     
     return templates.TemplateResponse("student_detail.html", {
-        "request": request,
-        "admin": admin,
-        "student": student,
+        "request": request, "admin": admin, "student": student,
         "student_roll": extract_roll_number(student["email"]),
-        "data": student_data,
-        "weeks_data": weeks_data,
+        "data": student_data, "weeks_data": weeks_data,
         "percentage_change": round(percentage_change, 1)
     })
 
 # =============================================================================
 # 7. API & FORM ROUTES (Backend Logic)
 # =============================================================================
-@app.post("/register")
-async def register_user(request: Request, email: str = Form(...), password: str = Form(...)):
+@app.post("/initiate-registration")
+async def initiate_registration(request: Request, email: str = Form(...)):
     if not email.endswith("@iiitn.ac.in"):
-        return RedirectResponse(
-            url="/?error=Registration failed: Email must be from the @iiitn.ac.in domain.",
-            status_code=status.HTTP_303_SEE_OTHER
-        )
-    
-    existing_user = await get_user_collection().find_one({"email": email})
-    if existing_user:
-        return RedirectResponse(
-            url="/?error=User with this email already exists.",
-            status_code=status.HTTP_303_SEE_OTHER
-        )
-    
-    # First user becomes admin
-    user_count = await get_user_collection().count_documents({})
-    is_admin = user_count == 0
-    
-    hashed_password = get_password_hash(password)
-    await get_user_collection().insert_one({
-        "email": email, 
-        "password": hashed_password,
-        "is_admin": is_admin,
-        "created_at": datetime.datetime.utcnow()
-    })
-    
-    return RedirectResponse(
-        url="/?message=Registration successful. Please log in.",
-        status_code=status.HTTP_303_SEE_OTHER
+        return RedirectResponse(url="/?error=Registration failed: Email must be from the @iiitn.ac.in domain.", status_code=status.HTTP_303_SEE_OTHER)
+
+    user_collection = get_user_collection()
+    existing_user = await user_collection.find_one({"email": email})
+    if existing_user and existing_user.get("is_verified"):
+        return RedirectResponse(url="/?error=User with this email already exists.", status_code=status.HTTP_303_SEE_OTHER)
+
+    otp = generate_otp()
+    otp_hash = get_password_hash(otp)
+    otp_expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+
+    await user_collection.update_one(
+        {"email": email},
+        {"$set": {
+            "email": email, "otp_hash": otp_hash, "otp_expires_at": otp_expires_at,
+            "is_verified": False, "created_at": datetime.datetime.utcnow()
+        }},
+        upsert=True
     )
+
+    try:
+        await send_otp_email(email, otp)
+    except Exception as e:
+        print(f"Email sending failed: {e}")
+        return RedirectResponse(url="/?error=Could not send verification email. Please try again.", status_code=status.HTTP_303_SEE_OTHER)
+    
+    return templates.TemplateResponse("verify.html", {
+        "request": request, "email": email,
+        "message": "A verification code has been sent to your email."
+    })
+
+@app.post("/complete-registration")
+async def complete_registration(request: Request, email: str = Form(...), otp: str = Form(...), password: str = Form(...)):
+    user_collection = get_user_collection()
+    user = await user_collection.find_one({"email": email})
+
+    error_context = {"request": request, "email": email}
+    if not user:
+        return templates.TemplateResponse("verify.html", {**error_context, "error": "User not found. Please start over."})
+    if user.get("is_verified"):
+        return templates.TemplateResponse("verify.html", {**error_context, "error": "This account is already verified."})
+    if datetime.datetime.utcnow() > user.get("otp_expires_at"):
+        return templates.TemplateResponse("verify.html", {**error_context, "error": "OTP has expired. Please request a new one."})
+    if not verify_password(otp, user.get("otp_hash")):
+        return templates.TemplateResponse("verify.html", {**error_context, "error": "Invalid OTP."})
+
+    hashed_password = get_password_hash(password)
+    verified_user_count = await user_collection.count_documents({"is_verified": True})
+    is_admin = verified_user_count == 0
+
+    await user_collection.update_one(
+        {"email": email},
+        {
+            "$set": {"password": hashed_password, "is_admin": is_admin, "is_verified": True},
+            "$unset": {"otp_hash": "", "otp_expires_at": ""}
+        }
+    )
+
+    return RedirectResponse(url="/?message=Registration successful! You can now log in.", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.post("/token")
 async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     user = await get_user_collection().find_one({"email": form_data.username})
-    if not user or not verify_password(form_data.password, user["password"]):
-        return RedirectResponse(
-            url="/?error=Incorrect email or password",
-            status_code=status.HTTP_303_SEE_OTHER
-        )
+    if not user or not user.get("is_verified") or not verify_password(form_data.password, user.get("password")):
+        return RedirectResponse(url="/?error=Incorrect email or password", status_code=status.HTTP_303_SEE_OTHER)
     
     access_token = create_access_token(data={"sub": user["email"]})
     
-    # Redirect based on admin status
-    redirect_url = "/admin" if user.get("is_admin", False) else "/dashboard"
+    redirect_url = "/admin" if user.get("is_admin") else "/dashboard"
     response = RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
     response.set_cookie(key="access_token", value=access_token, httponly=True, samesite="lax")
     return response
@@ -505,30 +553,18 @@ async def upload_screenshot(request: Request, user: dict = Depends(get_current_u
             "date": extracted_data['date']
         })
         if existing_entry:
-            return RedirectResponse(
-                url="/dashboard?error=Data for this date has already been uploaded.",
-                status_code=status.HTTP_303_SEE_OTHER
-            )
+            return RedirectResponse(url="/dashboard?error=Data for this date has already been uploaded.", status_code=status.HTTP_303_SEE_OTHER)
 
         extracted_data["user_email"] = user_email
         extracted_data["uploaded_at"] = datetime.datetime.utcnow()
         await get_screentime_collection().insert_one(extracted_data)
         
-        return RedirectResponse(
-            url="/dashboard?message=Screenshot processed and data saved successfully!",
-            status_code=status.HTTP_303_SEE_OTHER
-        )
+        return RedirectResponse(url="/dashboard?message=Screenshot processed and data saved successfully!", status_code=status.HTTP_303_SEE_OTHER)
 
     except ValueError as e:
-        return RedirectResponse(
-            url=f"/dashboard?error={str(e)}",
-            status_code=status.HTTP_303_SEE_OTHER
-        )
+        return RedirectResponse(url=f"/dashboard?error={str(e)}", status_code=status.HTTP_303_SEE_OTHER)
     except Exception as e:
-        return RedirectResponse(
-            url=f"/dashboard?error=An unexpected error occurred: {str(e)}",
-            status_code=status.HTTP_303_SEE_OTHER
-        )
+        return RedirectResponse(url=f"/dashboard?error=An unexpected error occurred: {str(e)}", status_code=status.HTTP_303_SEE_OTHER)
 
 # Health check endpoint for deployment
 @app.get("/health")
@@ -537,4 +573,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    uvicorn.run("app:app", port=int(os.environ.get("PORT", 8000)), reload=True)
