@@ -573,4 +573,10 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", port=int(os.environ.get("PORT", 8000)), reload=True)
+    # The key change is adding host="0.0.0.0"
+    uvicorn.run(
+        "app:app", 
+        host="0.0.0.0", 
+        port=int(os.environ.get("PORT", 8000)), 
+        reload=True
+    )
