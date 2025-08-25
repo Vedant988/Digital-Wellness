@@ -9,3 +9,4 @@ pymongo==4.6.0
 pydantic-settings==2.0.3
 groq==0.31.0
 python-dotenv==1.0.0
+fastapi-mail==1.5.0
