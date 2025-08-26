@@ -87,7 +87,7 @@ conf = ConnectionConfig(
 @app.on_event("startup")
 async def startup_db_client():
     app.mongodb_client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGO_DETAILS)
-    app.mongodb = app.mongodb_client.get_database("wellness_db")
+    app.mongodb = app.mongodb_client.get_database("wellness_dbi")
     # Initialize Groq client on startup
     app.groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
