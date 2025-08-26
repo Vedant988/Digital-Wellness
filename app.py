@@ -106,7 +106,7 @@ def get_screentime_collection():
 # =============================================================================
 async def analyze_screenshot_with_groq(image_bytes: bytes) -> Dict:
     """
-    Analyzes a screenshot using Groq's LLaVA model for validation and data extraction.
+    Analyzes a screenshot using Groq's vision - "meta-llama/llama-4-maverick-17b-128e-instruct" model for validation and data extraction.
     """
     base64_image = base64.b64encode(image_bytes).decode("utf-8")
     current_year = datetime.datetime.now().year
@@ -156,7 +156,7 @@ Do not include any other text, explanations, or markdown formatting. Your entire
                     ],
                 },
             ],
-            model="llama3-70b-8192",
+            model="meta-llama/llama-4-maverick-17b-128e-instruct",
             temperature=0.0,
             max_tokens=1024,
         )
