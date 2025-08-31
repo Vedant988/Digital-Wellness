@@ -3,294 +3,524 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Digital Wellness Monitor</title>
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <title>Digital Wellness Calendar</title>
+  <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&family=SF+Pro+Text:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     :root {
-      --primary: #4285F4;
-      --primary-dark: #3367D6;
-      --secondary: #34A853;
-      --accent: #FBBC05;
-      --danger: #EA4335;
-      --light-bg: #F8F9FA;
-      --card-bg: #FFFFFF;
-      --text-primary: #202124;
-      --text-secondary: #5F6368;
-      --text-light: #FFFFFF;
-      --border-radius: 8px;
-      --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      --transition: all 0.3s ease;
+      --primary-blue: #007AFF;
+      --primary-blue-hover: #0056CC;
+      --secondary-blue: #E3F2FD;
+      --green: #34C759;
+      --orange: #FF9500;
+      --red: #FF3B30;
+      --yellow: #FFCC00;
+      --purple: #AF52DE;
+      
+      --background: #F2F2F7;
+      --surface: #FFFFFF;
+      --surface-secondary: #F9F9F9;
+      --divider: #E5E5EA;
+      --text-primary: #1D1D1F;
+      --text-secondary: #8E8E93;
+      --text-tertiary: #C7C7CC;
+      
+      --border-radius: 12px;
+      --border-radius-small: 8px;
+      --spacing-xs: 4px;
+      --spacing-sm: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 32px;
+      
+      --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.1);
+      --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.15);
+      --shadow-heavy: 0 8px 25px rgba(0, 0, 0, 0.2);
+      
+      --transition: all 0.2s ease;
+      --transition-slow: all 0.3s ease;
     }
 
     body {
-      font-family: 'Google Sans', 'Roboto', sans-serif;
-      background: var(--light-bg);
+      font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--background);
       color: var(--text-primary);
-      line-height: 1.6;
+      line-height: 1.5;
       overflow-x: hidden;
     }
 
-    /* Header */
-    .header {
-      background: var(--primary);
-      padding: 1rem 2rem;
+    .app-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--divider);
+      padding: var(--spacing-md) var(--spacing-lg);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      color: var(--text-light);
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
 
-    .header h1 {
+    .app-title {
+      font-family: 'SF Pro Display', sans-serif;
       font-size: 1.5rem;
       font-weight: 600;
+      color: var(--text-primary);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: var(--spacing-sm);
     }
 
-    .header h1 i {
-      font-size: 1.3rem;
+    .user-section {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
     }
 
     .user-info {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .user-info span {
-      font-size: 0.95rem;
-      font-weight: 500;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
     }
 
     .logout-btn {
-      background: var(--card-bg);
-      color: var(--primary);
-      padding: 0.4rem 1rem;
+      background: var(--primary-blue);
+      color: white;
+      border: none;
+      padding: var(--spacing-sm) var(--spacing-md);
       border-radius: 20px;
-      text-decoration: none;
       font-weight: 500;
+      text-decoration: none;
       transition: var(--transition);
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
     }
 
     .logout-btn:hover {
-      background: #f0f0f0;
-      transform: translateY(-2px);
+      background: var(--primary-blue-hover);
+      transform: translateY(-1px);
+    }
+
+    .main-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+      display: grid;
+      gap: var(--spacing-lg);
     }
 
     /* Alert Messages */
     .alert {
-      max-width: 1200px;
-      margin: 1rem auto;
-      padding: 1rem 1.5rem;
+      margin-bottom: var(--spacing-lg);
+      padding: var(--spacing-md) var(--spacing-lg);
       border-radius: var(--border-radius);
-      font-size: 0.95rem;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: var(--spacing-sm);
+      font-weight: 500;
+      animation: slideIn 0.3s ease;
     }
 
     .alert-success {
-      background: #D1F2EB;
-      color: #0C5460;
-      border-left: 4px solid var(--secondary);
+      background: rgba(52, 199, 89, 0.1);
+      color: var(--green);
+      border: 1px solid rgba(52, 199, 89, 0.2);
     }
 
     .alert-error {
-      background: #FADBD8;
-      color: #7B241C;
-      border-left: 4px solid var(--danger);
+      background: rgba(255, 59, 48, 0.1);
+      color: var(--red);
+      border: 1px solid rgba(255, 59, 48, 0.2);
     }
 
-    /* Main Content */
-    .main-content {
-      max-width: 1200px;
-      margin: 2rem auto;
-      padding: 0 1.5rem;
-    }
-
-    .section-title {
-      font-size: 1.8rem;
-      margin-bottom: 2rem;
-      color: var(--text-primary);
-      position: relative;
-      padding-bottom: 0.5rem;
-    }
-
-    .section-title::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 60px;
-      height: 4px;
-      background: var(--primary);
-      border-radius: 2px;
-    }
-
-    /* Card Styles */
-    .card {
-      background: var(--card-bg);
-      border-radius: var(--border-radius);
-      padding: 2rem;
-      margin-bottom: 2.5rem;
-      box-shadow: var(--shadow);
-      transition: var(--transition);
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     /* Upload Section */
-    .upload-section {
-      margin-bottom: 3rem;
+    .upload-card {
+      background: var(--surface);
+      border-radius: var(--border-radius);
+      padding: var(--spacing-lg);
+      box-shadow: var(--shadow-light);
+      border: 1px solid var(--divider);
+    }
+
+    .upload-header {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-lg);
+    }
+
+    .upload-header h2 {
+      font-family: 'SF Pro Display', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-primary);
     }
 
     .upload-form {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
-      align-items: center;
-      text-align: center;
+      gap: var(--spacing-md);
     }
 
-    .file-input-wrapper {
+    .upload-area {
+      border: 2px dashed var(--divider);
+      border-radius: var(--border-radius);
+      padding: var(--spacing-xl);
+      text-align: center;
+      transition: var(--transition);
+      cursor: pointer;
       position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
+      background: var(--surface-secondary);
+    }
+
+    .upload-area:hover, .upload-area.dragover {
+      border-color: var(--primary-blue);
+      background: var(--secondary-blue);
+    }
+
+    .upload-icon {
+      font-size: 2.5rem;
+      color: var(--primary-blue);
+      margin-bottom: var(--spacing-md);
+    }
+
+    .upload-text {
+      font-size: 1.1rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .upload-subtext {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
     }
 
     .file-input {
-      display: none;
-    }
-
-    .file-input-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 0.8rem 1.5rem;
-      background: var(--primary);
-      color: var(--text-light);
-      border-radius: 30px;
+      position: absolute;
+      inset: 0;
+      opacity: 0;
       cursor: pointer;
-      font-weight: 500;
-      transition: var(--transition);
-    }
-
-    .file-input-label:hover {
-      background: var(--primary-dark);
-      transform: translateY(-2px);
-    }
-
-    .file-name {
-      font-style: italic;
-      color: var(--text-secondary);
-      padding: 0.5rem 1rem;
-      background: #E8F0FE;
-      border-radius: 20px;
-      font-size: 0.9rem;
     }
 
     .upload-btn {
-      padding: 0.8rem 1.5rem;
+      background: var(--primary-blue);
+      color: white;
       border: none;
+      padding: var(--spacing-md) var(--spacing-lg);
       border-radius: 25px;
-      background: var(--secondary);
-      color: var(--text-light);
       font-weight: 500;
       cursor: pointer;
       transition: var(--transition);
-      display: flex;
+      display: none;
       align-items: center;
-      gap: 8px;
-      font-size: 1rem;
+      justify-content: center;
+      gap: var(--spacing-sm);
+      align-self: center;
+      min-width: 160px;
     }
 
     .upload-btn:hover:not(:disabled) {
-      background: #2D8E47;
-      transform: translateY(-2px);
+      background: var(--primary-blue-hover);
+      transform: translateY(-1px);
     }
 
     .upload-btn:disabled {
-      background: #9E9E9E;
+      background: var(--text-tertiary);
       cursor: not-allowed;
-      transform: none;
     }
 
     .upload-note {
-      margin-top: 1.5rem;
-      padding: 1.5rem;
-      background: #E8F0FE;
-      border-radius: var(--border-radius);
-      font-size: 0.9rem;
+      margin-top: var(--spacing-lg);
+      padding: var(--spacing-md);
+      background: var(--secondary-blue);
+      border-radius: var(--border-radius-small);
+      font-size: 0.85rem;
       color: var(--text-secondary);
-      border-left: 4px solid var(--primary);
-      text-align: left;
+      border-left: 4px solid var(--primary-blue);
     }
 
     .upload-note strong {
-      color: var(--primary);
+      color: var(--primary-blue);
       display: block;
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--spacing-xs);
     }
 
-    /* History Section */
-    .data-section {
-      margin-top: 3rem;
-    }
-
-    .data-grid {
-      display: grid;
-      gap: 1.5rem;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    }
-
-    .data-card {
-      background: var(--card-bg);
+    /* Calendar Section */
+    .calendar-card {
+      background: var(--surface);
       border-radius: var(--border-radius);
-      padding: 1.5rem;
-      box-shadow: var(--shadow);
+      box-shadow: var(--shadow-light);
+      border: 1px solid var(--divider);
+      overflow: hidden;
+    }
+
+    .calendar-header {
+      padding: var(--spacing-lg);
+      border-bottom: 1px solid var(--divider);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--surface-secondary);
+    }
+
+    .calendar-title {
+      font-family: 'SF Pro Display', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .calendar-controls {
+      display: flex;
+      gap: var(--spacing-sm);
+      align-items: center;
+    }
+
+    .view-toggle {
+      display: flex;
+      background: var(--divider);
+      border-radius: var(--border-radius-small);
+      padding: 2px;
+    }
+
+    .view-btn {
+      background: none;
+      border: none;
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
       transition: var(--transition);
-      border-top: 4px solid var(--primary);
     }
 
-    .data-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    .view-btn.active {
+      background: var(--surface);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-light);
     }
 
-    .data-card h3 {
-      font-size: 1.1rem;
-      margin-bottom: 1rem;
-      color: var(--primary);
+    .nav-btn {
+      background: none;
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
+      color: var(--primary-blue);
+      cursor: pointer;
+      transition: var(--transition);
     }
 
-    .screen-time {
-      font-size: 1.6rem;
-      font-weight: bold;
-      margin-bottom: 1.5rem;
-      color: var(--secondary);
+    .nav-btn:hover {
+      background: var(--secondary-blue);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    .weekday-header {
+      padding: var(--spacing-md);
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--surface-secondary);
+      border-bottom: 1px solid var(--divider);
+    }
+
+    .calendar-day {
+      aspect-ratio: 1;
+      border-right: 1px solid var(--divider);
+      border-bottom: 1px solid var(--divider);
+      position: relative;
+      cursor: pointer;
+      transition: var(--transition);
+      padding: var(--spacing-sm);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      min-height: 80px;
+    }
+
+    .calendar-day:nth-child(7n) {
+      border-right: none;
+    }
+
+    .calendar-day:hover {
+      background: var(--surface-secondary);
+    }
+
+    .calendar-day.other-month {
+      color: var(--text-tertiary);
+      background: var(--surface-secondary);
+    }
+
+    .calendar-day.today {
+      background: var(--secondary-blue);
+    }
+
+    .calendar-day.has-data {
+      background: linear-gradient(135deg, var(--surface) 0%, var(--secondary-blue) 100%);
+    }
+
+    .calendar-day.has-data:hover {
+      background: linear-gradient(135deg, var(--secondary-blue) 0%, rgba(0, 122, 255, 0.2) 100%);
+    }
+
+    .day-number {
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .day-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: auto;
+      align-self: center;
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .has-data .day-indicator {
+      opacity: 1;
+      background: var(--primary-blue);
+    }
+
+    .screen-time-preview {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin-top: auto;
+      text-align: center;
+      opacity: 0.8;
+    }
+
+    /* Day Detail Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: var(--transition);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: var(--surface);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow-heavy);
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow: hidden;
+      transform: scale(0.9);
+      transition: var(--transition-slow);
+    }
+
+    .modal-overlay.active .modal {
+      transform: scale(1);
+    }
+
+    .modal-header {
+      padding: var(--spacing-lg);
+      border-bottom: 1px solid var(--divider);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-family: 'SF Pro Display', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .close-btn:hover {
+      background: var(--surface-secondary);
+      color: var(--text-primary);
+    }
+
+    .modal-content {
+      padding: var(--spacing-lg);
+      overflow-y: auto;
+      max-height: 60vh;
+    }
+
+    .total-time {
+      text-align: center;
+      margin-bottom: var(--spacing-lg);
+      padding: var(--spacing-lg);
+      background: var(--surface-secondary);
+      border-radius: var(--border-radius-small);
+    }
+
+    .time-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--primary-blue);
+      font-family: 'SF Pro Display', sans-serif;
+    }
+
+    .time-label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: var(--spacing-xs);
     }
 
     .app-list {
@@ -300,9 +530,9 @@
     .app-item {
       display: flex;
       justify-content: space-between;
-      padding: 0.5rem 0;
-      font-size: 0.95rem;
-      border-bottom: 1px solid #eee;
+      align-items: center;
+      padding: var(--spacing-md) 0;
+      border-bottom: 1px solid var(--divider);
     }
 
     .app-item:last-child {
@@ -315,102 +545,119 @@
     }
 
     .app-time {
-      color: var(--text-secondary);
       font-weight: 600;
+      color: var(--text-secondary);
     }
 
-    .no-data {
+    /* Empty State */
+    .empty-state {
       text-align: center;
+      padding: var(--spacing-xl);
       color: var(--text-secondary);
-      padding: 4rem 2rem;
-      grid-column: 1 / -1;
     }
 
-    .no-data i {
+    .empty-icon {
       font-size: 4rem;
-      margin-bottom: 1.5rem;
-      color: #DADCE0;
+      color: var(--text-tertiary);
+      margin-bottom: var(--spacing-lg);
     }
 
-    .no-data h3 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      color: var(--text-secondary);
+    .empty-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: var(--spacing-sm);
+      color: var(--text-primary);
     }
 
-    .no-data p {
-      font-size: 1.1rem;
-      color: var(--text-secondary);
+    .empty-description {
+      font-size: 1rem;
+      line-height: 1.6;
     }
 
-    /* Mobile Responsiveness */
+    /* Mobile Responsive */
     @media (max-width: 768px) {
-      .header {
+      .main-container {
+        padding: var(--spacing-md);
+        gap: var(--spacing-md);
+      }
+
+      .app-header {
+        padding: var(--spacing-md);
+      }
+
+      .header-content {
         flex-direction: column;
-        gap: 1rem;
-        padding: 1rem;
+        gap: var(--spacing-md);
+        align-items: flex-start;
       }
-      
-      .user-info {
-        order: -1;
-        justify-content: center;
+
+      .calendar-header {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        align-items: stretch;
       }
-      
-      .main-content {
-        padding: 0 1rem;
-        margin: 1rem auto;
+
+      .calendar-controls {
+        justify-content: space-between;
       }
-      
-      .card {
-        padding: 1.5rem;
+
+      .calendar-day {
+        min-height: 60px;
+        padding: var(--spacing-xs);
       }
-      
-      .data-grid {
-        grid-template-columns: 1fr;
+
+      .day-number {
+        font-size: 0.8rem;
       }
-      
-      .section-title {
-        font-size: 1.5rem;
-        text-align: center;
+
+      .screen-time-preview {
+        font-size: 0.6rem;
       }
-      
-      .section-title::after {
-        left: 50%;
-        transform: translateX(-50%);
+
+      .modal {
+        width: 95%;
+        margin: var(--spacing-md);
+      }
+
+      .upload-area {
+        padding: var(--spacing-lg);
+      }
+
+      .upload-icon {
+        font-size: 2rem;
       }
     }
 
     @media (max-width: 480px) {
-      .header h1 {
-        font-size: 1.2rem;
+      .weekday-header {
+        padding: var(--spacing-sm);
+        font-size: 0.7rem;
       }
-      
-      .section-title {
+
+      .calendar-day {
+        min-height: 50px;
+      }
+
+      .day-number {
+        font-size: 0.7rem;
+      }
+
+      .time-value {
+        font-size: 2rem;
+      }
+
+      .app-title {
         font-size: 1.3rem;
       }
-      
-      .card {
-        padding: 1rem;
-      }
-      
-      .file-input-label {
-        padding: 0.7rem 1.2rem;
-        font-size: 0.9rem;
-      }
-      
-      .upload-btn {
-        padding: 0.7rem 1.2rem;
-        font-size: 0.9rem;
-      }
     }
 
-    /* Loading animation */
+    /* Loading States */
     .loading {
-      opacity: 0.7;
+      opacity: 0.6;
+      pointer-events: none;
     }
 
-    .loading::after {
-      content: '';
+    .spinner {
       display: inline-block;
       width: 16px;
       height: 16px;
@@ -418,132 +665,412 @@
       border-top: 2px solid currentColor;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin-left: 8px;
     }
 
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
+
+    /* Touch Interactions */
+    @media (hover: none) and (pointer: coarse) {
+      .calendar-day:active {
+        background: var(--primary-blue);
+        color: white;
+        transform: scale(0.95);
+      }
+
+      .nav-btn:active {
+        background: var(--primary-blue);
+        color: white;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1><i class="fas fa-chart-line"></i> Digital Wellness Dashboard</h1>
-    <div class="user-info">
-      <span>Welcome, {{ user.email }} 👋</span>
-      <a href="/logout" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+  <header class="app-header">
+    <div class="header-content">
+      <h1 class="app-title">
+        <i class="fas fa-brain"></i>
+        Digital Wellness
+      </h1>
+      <div class="user-section">
+        <span class="user-info">Welcome, {{ user.email }}</span>
+        <a href="/logout" class="logout-btn">
+          <i class="fas fa-sign-out-alt"></i>
+          Sign Out
+        </a>
+      </div>
     </div>
-  </div>
+  </header>
 
-  {% if message %}
-  <div class="alert alert-success">
-    <i class="fas fa-check-circle"></i>
-    {{ message }}
-  </div>
-  {% endif %}
-  
-  {% if error %}
-  <div class="alert alert-error">
-    <i class="fas fa-exclamation-triangle"></i>
-    {{ error }}
-  </div>
-  {% endif %}
+  <main class="main-container">
+    <!-- Alert Messages -->
+    {% if message %}
+    <div class="alert alert-success">
+      <i class="fas fa-check-circle"></i>
+      {{ message }}
+    </div>
+    {% endif %}
+    
+    {% if error %}
+    <div class="alert alert-error">
+      <i class="fas fa-exclamation-triangle"></i>
+      {{ error }}
+    </div>
+    {% endif %}
 
-  <div class="main-content">
-    <section class="upload-section">
-      <div class="card">
-        <h2 class="section-title"><i class="fas fa-upload"></i> Upload Screen Time Screenshot</h2>
-        <form class="upload-form" method="post" action="/upload" enctype="multipart/form-data" id="upload-form">
-          <div class="file-input-wrapper">
-            <label for="screenshot" class="file-input-label">
-              <i class="fas fa-camera"></i> Choose Screenshot
-            </label>
-            <input type="file" id="screenshot" name="file" class="file-input" accept="image/*" required>
-            <span class="file-name" id="file-name" style="display: none;"></span>
-          </div>
-          <button type="submit" class="upload-btn" id="upload-btn" disabled>
-            <i class="fas fa-cloud-upload-alt"></i> Upload & Analyze
-          </button>
-        </form>
-        <div class="upload-note">
-          <strong><i class="fas fa-info-circle"></i> Instructions:</strong>
-          <br>• Take a screenshot of your phone's "Digital Wellbeing" (Android) or "Screen Time" (iOS) daily summary
-          <br>• Make sure the date, total screen time, and top apps are clearly visible
-          <br>• Upload only valid screen time screenshots - other images will be rejected
+    <!-- Upload Section -->
+    <section class="upload-card">
+      <div class="upload-header">
+        <i class="fas fa-upload"></i>
+        <h2>Add Screen Time Data</h2>
+      </div>
+      <form class="upload-form" method="post" action="/upload" enctype="multipart/form-data" id="uploadForm">
+        <div class="upload-area" id="uploadArea">
+          <i class="fas fa-mobile-alt upload-icon"></i>
+          <div class="upload-text">Drop your screen time screenshot here</div>
+          <div class="upload-subtext">or click to browse files</div>
+          <input type="file" class="file-input" id="fileInput" name="file" accept="image/*" required>
         </div>
+        <button type="submit" class="upload-btn" id="uploadBtn">
+          <i class="fas fa-cloud-upload-alt"></i>
+          Upload & Process
+        </button>
+      </form>
+      <div class="upload-note">
+        <strong><i class="fas fa-info-circle"></i> Instructions:</strong>
+        Take a screenshot of your phone's "Digital Wellbeing" (Android) or "Screen Time" (iOS) daily summary. Make sure the date, total screen time, and top apps are clearly visible.
       </div>
     </section>
 
-    <section class="data-section">
-      <h2 class="section-title">Your Screen Time History</h2>
-      {% if data %}
-      <div class="data-grid">
-        {% for entry in data %}
-        <div class="data-card">
-          <h3><i class="far fa-calendar"></i> {{ entry.date }}</h3>
-          <div class="screen-time">{{ entry.totalScreenTime }}</div>
-          <h4 style="margin-bottom: 0.5rem; color: var(--text-primary); font-size: 0.95rem;">Top Apps:</h4>
-          <ul class="app-list">
-            {% for app in entry.topApps %}
-            <li class="app-item">
-              <span class="app-name">{{ app.appName }}</span>
-              <span class="app-time">{{ app.timeUsed }}</span>
-            </li>
-            {% endfor %}
-          </ul>
+    <!-- Calendar Section -->
+    <section class="calendar-card">
+      <div class="calendar-header">
+        <h2 class="calendar-title" id="calendarTitle">January 2025</h2>
+        <div class="calendar-controls">
+          <div class="view-toggle">
+            <button class="view-btn active" data-view="month">Month</button>
+            <button class="view-btn" data-view="week">Week</button>
+          </div>
+          <button class="nav-btn" id="prevBtn">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <button class="nav-btn" id="todayBtn" title="Today">
+            <i class="fas fa-dot-circle"></i>
+          </button>
+          <button class="nav-btn" id="nextBtn">
+            <i class="fas fa-chevron-right"></i>
+          </button>
         </div>
-        {% endfor %}
       </div>
-      {% else %}
-      <div class="no-data">
-        <i class="fas fa-chart-bar"></i>
-        <h3>No Data Yet</h3>
-        <p>Start by uploading your first screen time screenshot above!</p>
+      
+      <div class="calendar-grid" id="calendarGrid">
+        <!-- Weekday headers -->
+        <div class="weekday-header">Sun</div>
+        <div class="weekday-header">Mon</div>
+        <div class="weekday-header">Tue</div>
+        <div class="weekday-header">Wed</div>
+        <div class="weekday-header">Thu</div>
+        <div class="weekday-header">Fri</div>
+        <div class="weekday-header">Sat</div>
+      </div>
+
+      <!-- Show empty state if no data -->
+      {% if not data %}
+      <div class="empty-state">
+        <i class="fas fa-calendar-alt empty-icon"></i>
+        <div class="empty-title">No Screen Time Data</div>
+        <div class="empty-description">Start tracking by uploading your first screen time screenshot above</div>
       </div>
       {% endif %}
     </section>
+  </main>
+
+  <!-- Day Detail Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="dayModal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">January 15, 2025</h3>
+        <button class="close-btn" id="closeModal">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-content" id="modalContent">
+        <div class="total-time">
+          <div class="time-value" id="totalTime">4h 32m</div>
+          <div class="time-label">Total Screen Time</div>
+        </div>
+        <ul class="app-list" id="appList">
+          <!-- App usage will be populated here -->
+        </ul>
+      </div>
+    </div>
   </div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // File input handling
-      const fileInput = document.getElementById('screenshot');
-      const fileName = document.getElementById('file-name');
-      const uploadBtn = document.getElementById('upload-btn');
-      const uploadForm = document.getElementById('upload-form');
-      
-      fileInput.addEventListener('change', function(e) {
-        if (e.target.files.length > 0) {
-          const file = e.target.files[0];
-          fileName.textContent = file.name;
-          fileName.style.display = 'block';
-          uploadBtn.disabled = false;
-        } else {
-          fileName.textContent = '';
-          fileName.style.display = 'none';
-          uploadBtn.disabled = true;
-        }
-      });
-      
-      // Form submission handling
-      uploadForm.addEventListener('submit', function(e) {
-        const originalText = uploadBtn.innerHTML;
-        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-        uploadBtn.disabled = true;
-        uploadBtn.classList.add('loading');
+    // Convert backend data to JavaScript object
+    const screenTimeData = {};
+    {% if data %}
+    {% for entry in data %}
+    screenTimeData['{{ entry.date }}'] = {
+      totalScreenTime: '{{ entry.totalScreenTime }}',
+      topApps: {{ entry.topApps | tojson }}
+    };
+    {% endfor %}
+    {% endif %}
+
+    class DigitalWellnessCalendar {
+      constructor() {
+        this.currentDate = new Date();
+        this.currentView = 'month';
+        this.data = screenTimeData;
         
-        // Re-enable button if form submission fails
-        setTimeout(() => {
-          if (uploadBtn.classList.contains('loading')) {
-            uploadBtn.innerHTML = originalText;
-            uploadBtn.disabled = false;
-            uploadBtn.classList.remove('loading');
+        this.initializeElements();
+        this.bindEvents();
+        this.renderCalendar();
+      }
+
+      initializeElements() {
+        this.calendarGrid = document.getElementById('calendarGrid');
+        this.calendarTitle = document.getElementById('calendarTitle');
+        this.prevBtn = document.getElementById('prevBtn');
+        this.nextBtn = document.getElementById('nextBtn');
+        this.todayBtn = document.getElementById('todayBtn');
+        this.viewBtns = document.querySelectorAll('.view-btn');
+        
+        // Upload elements
+        this.uploadArea = document.getElementById('uploadArea');
+        this.fileInput = document.getElementById('fileInput');
+        this.uploadBtn = document.getElementById('uploadBtn');
+        this.uploadForm = document.getElementById('uploadForm');
+        
+        // Modal elements
+        this.modalOverlay = document.getElementById('modalOverlay');
+        this.dayModal = document.getElementById('dayModal');
+        this.modalTitle = document.getElementById('modalTitle');
+        this.modalContent = document.getElementById('modalContent');
+        this.closeModal = document.getElementById('closeModal');
+        this.totalTime = document.getElementById('totalTime');
+        this.appList = document.getElementById('appList');
+      }
+
+      bindEvents() {
+        // Navigation
+        this.prevBtn.addEventListener('click', () => this.navigateMonth(-1));
+        this.nextBtn.addEventListener('click', () => this.navigateMonth(1));
+        this.todayBtn.addEventListener('click', () => this.goToToday());
+        
+        // View toggle
+        this.viewBtns.forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            this.viewBtns.forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            this.currentView = e.target.dataset.view;
+            this.renderCalendar();
+          });
+        });
+
+        // Upload functionality
+        this.uploadArea.addEventListener('click', () => this.fileInput.click());
+        this.uploadArea.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          this.uploadArea.classList.add('dragover');
+        });
+        this.uploadArea.addEventListener('dragleave', () => {
+          this.uploadArea.classList.remove('dragover');
+        });
+        this.uploadArea.addEventListener('drop', (e) => {
+          e.preventDefault();
+          this.uploadArea.classList.remove('dragover');
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            this.handleFileUpload(files[0]);
           }
-        }, 30000); // 30 second timeout
-      });
+        });
+
+        this.fileInput.addEventListener('change', (e) => {
+          if (e.target.files.length > 0) {
+            this.handleFileUpload(e.target.files[0]);
+          }
+        });
+
+        // Form submission
+        this.uploadForm.addEventListener('submit', (e) => {
+          this.uploadBtn.innerHTML = '<div class="spinner"></div> Processing...';
+          this.uploadBtn.disabled = true;
+        });
+
+        // Modal events
+        this.modalOverlay.addEventListener('click', (e) => {
+          if (e.target === this.modalOverlay) {
+            this.closeModalHandler();
+          }
+        });
+        this.closeModal.addEventListener('click', () => this.closeModalHandler());
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape' && this.modalOverlay.classList.contains('active')) {
+            this.closeModalHandler();
+          }
+        });
+      }
+
+      navigateMonth(direction) {
+        this.currentDate.setMonth(this.currentDate.getMonth() + direction);
+        this.renderCalendar();
+      }
+
+      goToToday() {
+        this.currentDate = new Date();
+        this.renderCalendar();
+      }
+
+      renderCalendar() {
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        
+        this.calendarTitle.textContent = new Date(year, month).toLocaleDateString('en-US', {
+          month: 'long',
+          year: 'numeric'
+        });
+
+        // Clear existing days (keep headers)
+        const existingDays = this.calendarGrid.querySelectorAll('.calendar-day');
+        existingDays.forEach(day => day.remove());
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+        const today = new Date();
+        
+        for (let i = 0; i < 42; i++) {
+          const currentDate = new Date(startDate);
+          currentDate.setDate(startDate.getDate() + i);
+          
+          const dayElement = this.createDayElement(currentDate, month, today);
+          this.calendarGrid.appendChild(dayElement);
+        }
+      }
+
+      createDayElement(date, currentMonth, today) {
+        const dayElement = document.createElement('div');
+        dayElement.className = 'calendar-day';
+        
+        const isCurrentMonth = date.getMonth() === currentMonth;
+        const isToday = date.toDateString() === today.toDateString();
+        const dateStr = date.toISOString().split('T')[0];
+        const hasData = this.data[dateStr];
+        
+        if (!isCurrentMonth) {
+          dayElement.classList.add('other-month');
+        }
+        if (isToday) {
+          dayElement.classList.add('today');
+        }
+        if (hasData) {
+          dayElement.classList.add('has-data');
+        }
+        
+        dayElement.innerHTML = `
+          <div class="day-number">${date.getDate()}</div>
+          ${hasData ? `<div class="screen-time-preview">${hasData.totalScreenTime}</div>` : ''}
+          <div class="day-indicator"></div>
+        `;
+        
+        if (hasData) {
+          dayElement.addEventListener('click', () => {
+            this.showDayDetails(date, hasData);
+          });
+        }
+        
+        return dayElement;
+      }
+
+      showDayDetails(date, data) {
+        const dateStr = date.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        
+        this.modalTitle.textContent = dateStr;
+        this.totalTime.textContent = data.totalScreenTime;
+        
+        // Populate app list
+        this.appList.innerHTML = '';
+        if (data.topApps && data.topApps.length > 0) {
+          data.topApps.forEach(app => {
+            const listItem = document.createElement('li');
+            listItem.className = 'app-item';
+            listItem.innerHTML = `
+              <span class="app-name">${app.appName}</span>
+              <span class="app-time">${app.timeUsed}</span>
+            `;
+            this.appList.appendChild(listItem);
+          });
+        } else {
+          this.appList.innerHTML = '<li class="app-item"><span class="app-name">No app data available</span></li>';
+        }
+        
+        this.modalOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+
+      closeModalHandler() {
+        this.modalOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+
+      handleFileUpload(file) {
+        if (!file.type.startsWith('image/')) {
+          this.showAlert('Please select a valid image file', 'error');
+          return;
+        }
+        
+        // Update upload area
+        this.uploadArea.innerHTML = `
+          <i class="fas fa-check-circle upload-icon" style="color: var(--green);"></i>
+          <div class="upload-text">${file.name}</div>
+          <div class="upload-subtext">Ready to process</div>
+        `;
+        
+        this.uploadBtn.style.display = 'flex';
+      }
+
+      showAlert(message, type) {
+        // Remove existing alerts
+        const existingAlerts = document.querySelectorAll('.alert');
+        existingAlerts.forEach(alert => alert.remove());
+        
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type}`;
+        alert.innerHTML = `
+          <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+          ${message}
+        `;
+        
+        const mainContainer = document.querySelector('.main-container');
+        mainContainer.insertBefore(alert, mainContainer.firstChild);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+          alert.style.opacity = '0';
+          alert.style.transform = 'translateY(-20px)';
+          setTimeout(() => alert.remove(), 300);
+        }, 5000);
+      }
+    }
+
+    // Initialize the calendar when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      new DigitalWellnessCalendar();
       
-      // Clear alerts after 5 seconds
+      // Auto-dismiss alerts after 5 seconds
       setTimeout(() => {
         const alerts = document.querySelectorAll('.alert');
         alerts.forEach(alert => {
@@ -556,13 +1083,44 @@
       // Smooth scroll to upload section if there's an error/success message
       if (document.querySelector('.alert')) {
         setTimeout(() => {
-          document.querySelector('.upload-section').scrollIntoView({ 
+          document.querySelector('.upload-card').scrollIntoView({ 
             behavior: 'smooth', 
             block: 'center' 
           });
         }, 100);
       }
     });
+
+    // Add touch gesture support for mobile swipe navigation
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    document.addEventListener('touchstart', e => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+
+    document.addEventListener('touchend', e => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    });
+
+    function handleSwipe() {
+      const swipeThreshold = 100;
+      const diff = touchEndX - touchStartX;
+      
+      // Only trigger swipe if we're not in a modal and the swipe is significant
+      if (!document.getElementById('modalOverlay').classList.contains('active')) {
+        if (Math.abs(diff) > swipeThreshold) {
+          if (diff > 0) {
+            // Swipe right - previous month
+            document.getElementById('prevBtn').click();
+          } else {
+            // Swipe left - next month
+            document.getElementById('nextBtn').click();
+          }
+        }
+      }
+    }
   </script>
 </body>
 </html>
