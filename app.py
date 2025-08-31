@@ -1,4 +1,3 @@
-#app.py
 import os
 import datetime
 import base64
@@ -6,6 +5,7 @@ import json
 import re
 import random
 from typing import Dict, List, Optional
+import calendar
 
 # --- Pydantic for Settings Management ---
 from pydantic_settings import BaseSettings
@@ -15,7 +15,7 @@ from pydantic import EmailStr
 from fastapi import (
     FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, Query
 )
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
@@ -372,6 +372,76 @@ async def get_student_attention_status(user_email: str):
     }
 
 # =============================================================================
+# 5.5. CALENDAR UTILITY FUNCTIONS
+# =============================================================================
+def get_month_calendar(year: int, month: int):
+    """Generate calendar data for a specific month"""
+    cal = calendar.monthcalendar(year, month)
+    month_name = calendar.month_name[month]
+    
+    # Flatten the calendar and add date info
+    calendar_days = []
+    for week in cal:
+        for day in week:
+            if day == 0:
+                calendar_days.append(None)  # Empty cell
+            else:
+                date_obj = datetime.date(year, month, day)
+                calendar_days.append({
+                    'day': day,
+                    'date': date_obj.strftime("%Y-%m-%d"),
+                    'is_today': date_obj == datetime.date.today()
+                })
+    
+    return {
+        'year': year,
+        'month': month,
+        'month_name': month_name,
+        'days': calendar_days,
+        'weeks': len(cal)
+    }
+
+def get_week_calendar(year: int, month: int, day: int):
+    """Generate calendar data for a specific week"""
+    target_date = datetime.date(year, month, day)
+    # Find the Monday of the week containing the target date
+    week_start = target_date - datetime.timedelta(days=target_date.weekday())
+    
+    week_days = []
+    for i in range(7):
+        date_obj = week_start + datetime.timedelta(days=i)
+        week_days.append({
+            'day': date_obj.day,
+            'date': date_obj.strftime("%Y-%m-%d"),
+            'day_name': date_obj.strftime("%a"),
+            'is_today': date_obj == datetime.date.today()
+        })
+    
+    return {
+        'week_start': week_start.strftime("%Y-%m-%d"),
+        'week_end': (week_start + datetime.timedelta(days=6)).strftime("%Y-%m-%d"),
+        'days': week_days
+    }
+
+async def get_calendar_events(user_email: str, start_date: str, end_date: str):
+    """Get screen time events for a date range"""
+    cursor = get_screentime_collection().find({
+        "user_email": user_email,
+        "date": {"$gte": start_date, "$lte": end_date}
+    })
+    events = await cursor.to_list(length=None)
+    
+    # Create a map for quick lookup
+    events_map = {}
+    for event in events:
+        events_map[event["date"]] = {
+            "totalScreenTime": event.get("totalScreenTime", "0m"),
+            "topApps": event.get("topApps", [])
+        }
+    
+    return events_map
+
+# =============================================================================
 # 6. FRONTEND ROUTES (HTML Pages)
 # =============================================================================
 @app.get("/", response_class=HTMLResponse)
@@ -383,12 +453,79 @@ async def read_root(request: Request, message: Optional[str] = Query(None), erro
     })
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def view_dashboard(request: Request, user: dict = Depends(get_current_user_required), message: Optional[str] = Query(None), error: Optional[str] = Query(None)):
-    cursor = get_screentime_collection().find({"user_email": user["email"]}).sort("date", -1)
-    user_data = await cursor.to_list(length=100)
+async def view_dashboard(
+    request: Request, 
+    user: dict = Depends(get_current_user_required), 
+    message: Optional[str] = Query(None), 
+    error: Optional[str] = Query(None),
+    view: str = Query("month"),  # month, week, day
+    year: Optional[int] = Query(None),
+    month: Optional[int] = Query(None),
+    day: Optional[int] = Query(None)
+):
+    # Default to current date
+    today = datetime.date.today()
+    year = year or today.year
+    month = month or today.month
+    day = day or today.day
+    
+    # Validate date parameters
+    try:
+        current_date = datetime.date(year, month, day)
+    except ValueError:
+        current_date = today
+        year, month, day = today.year, today.month, today.day
+    
+    calendar_data = None
+    events_map = {}
+    
+    if view == "month":
+        calendar_data = get_month_calendar(year, month)
+        # Get events for the entire month
+        month_start = datetime.date(year, month, 1)
+        next_month = month + 1 if month < 12 else 1
+        next_year = year if month < 12 else year + 1
+        try:
+            month_end = datetime.date(next_year, next_month, 1) - datetime.timedelta(days=1)
+        except ValueError:
+            month_end = datetime.date(year, month, 28)  # Fallback
+        
+        events_map = await get_calendar_events(
+            user["email"], 
+            month_start.strftime("%Y-%m-%d"), 
+            month_end.strftime("%Y-%m-%d")
+        )
+        
+    elif view == "week":
+        calendar_data = get_week_calendar(year, month, day)
+        events_map = await get_calendar_events(
+            user["email"],
+            calendar_data["week_start"],
+            calendar_data["week_end"]
+        )
+        
+    elif view == "day":
+        # For day view, just get the single day's data
+        date_str = current_date.strftime("%Y-%m-%d")
+        day_events = await get_calendar_events(user["email"], date_str, date_str)
+        calendar_data = {
+            'current_date': date_str,
+            'day_name': current_date.strftime("%A"),
+            'event': day_events.get(date_str)
+        }
+    
     return templates.TemplateResponse("dashboard.html", {
-        "request": request, "user": user, "data": user_data,
-        "message": message, "error": error
+        "request": request, 
+        "user": user, 
+        "message": message, 
+        "error": error,
+        "view": view,
+        "year": year,
+        "month": month,
+        "day": day,
+        "calendar_data": calendar_data,
+        "events_map": events_map,
+        "today": today.strftime("%Y-%m-%d")
     })
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -541,31 +678,202 @@ async def logout():
     response.delete_cookie(key="access_token")
     return response
 
-@app.post("/upload")
-async def upload_screenshot(request: Request, user: dict = Depends(get_current_user_required), file: UploadFile = File(...)):
+# Add these API routes to your existing app.py file
+
+@app.get("/api/user")
+async def get_current_user_api(user: dict = Depends(get_current_user_required)):
+    """API endpoint to get current user data"""
+    return {
+        "email": user["email"],
+        "is_admin": user.get("is_admin", False),
+        "created_at": user.get("created_at")
+    }
+
+@app.get("/api/screentime")
+async def get_user_screentime_data(user: dict = Depends(get_current_user_required)):
+    """API endpoint to get user's screen time data"""
     try:
-        image_bytes = await file.read()
+        cursor = get_screentime_collection().find(
+            {"user_email": user["email"]}
+        ).sort("date", -1)
+        
+        user_data = await cursor.to_list(length=100)
+        
+        # Convert ObjectId to string and ensure proper format
+        formatted_data = []
+        for entry in user_data:
+            formatted_entry = {
+                "date": entry.get("date"),
+                "totalScreenTime": entry.get("totalScreenTime"),
+                "topApps": entry.get("topApps", [])
+            }
+            formatted_data.append(formatted_entry)
+            
+        return formatted_data
+        
+    except Exception as e:
+        print(f"Error fetching screentime data: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch screen time data")
+
+# =============================================================================
+# 7.5. CALENDAR API ROUTES
+# =============================================================================
+@app.get("/api/calendar/events")
+async def get_calendar_events_api(
+    user: dict = Depends(get_current_user_required),
+    start_date: str = Query(...),
+    end_date: str = Query(...)
+):
+    """API endpoint to get calendar events for a date range"""
+    try:
+        events_map = await get_calendar_events(user["email"], start_date, end_date)
+        return events_map
+    except Exception as e:
+        print(f"Error fetching calendar events: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch calendar events")
+
+# Update the existing /upload route to handle both form and API responses
+@app.post("/upload")
+async def upload_screenshot(
+    request: Request, 
+    user: dict = Depends(get_current_user_required), 
+    file: UploadFile = File(...)
+):
+    try:
+        # Validate file
+        if not file.content_type or not file.content_type.startswith('image/'):
+            error_msg = "Please upload a valid image file"
+            # Check if it's an API request (JSON response) or form request (redirect)
+            if request.headers.get("accept") == "application/json":
+                raise HTTPException(status_code=400, detail=error_msg)
+            return RedirectResponse(
+                url=f"/dashboard?error={error_msg}", 
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+
+        # Check file size (10MB limit)
+        file_size = 0
+        image_bytes = bytearray()
+        
+        # Read file in chunks to check size
+        chunk_size = 1024 * 1024  # 1MB chunks
+        while chunk := await file.read(chunk_size):
+            file_size += len(chunk)
+            if file_size > 10 * 1024 * 1024:  # 10MB limit
+                error_msg = "File size must be less than 10MB"
+                if request.headers.get("accept") == "application/json":
+                    raise HTTPException(status_code=400, detail=error_msg)
+                return RedirectResponse(
+                    url=f"/dashboard?error={error_msg}", 
+                    status_code=status.HTTP_303_SEE_OTHER
+                )
+            image_bytes.extend(chunk)
+        
+        # Reset file position
+        image_bytes = bytes(image_bytes)
+        
+        # Process with AI
         extracted_data = await analyze_screenshot_with_groq(image_bytes)
         
         user_email = user["email"]
         
+        # Check for existing entry
         existing_entry = await get_screentime_collection().find_one({
             "user_email": user_email,
             "date": extracted_data['date']
         })
+        
         if existing_entry:
-            return RedirectResponse(url="/dashboard?error=Data for this date has already been uploaded.", status_code=status.HTTP_303_SEE_OTHER)
+            error_msg = "Data for this date has already been uploaded."
+            if request.headers.get("accept") == "application/json":
+                raise HTTPException(status_code=409, detail=error_msg)
+            return RedirectResponse(
+                url=f"/dashboard?error={error_msg}", 
+                status_code=status.HTTP_303_SEE_OTHER
+            )
 
+        # Save to database
         extracted_data["user_email"] = user_email
         extracted_data["uploaded_at"] = datetime.datetime.utcnow()
         await get_screentime_collection().insert_one(extracted_data)
         
-        return RedirectResponse(url="/dashboard?message=Screenshot processed and data saved successfully!", status_code=status.HTTP_303_SEE_OTHER)
+        success_msg = "Screenshot processed and data saved successfully!"
+        
+        # Return appropriate response
+        if request.headers.get("accept") == "application/json":
+            return {
+                "message": success_msg,
+                "data": {
+                    "date": extracted_data["date"],
+                    "totalScreenTime": extracted_data["totalScreenTime"],
+                    "topApps": extracted_data["topApps"]
+                }
+            }
+        else:
+            return RedirectResponse(
+                url=f"/dashboard?message={success_msg}", 
+                status_code=status.HTTP_303_SEE_OTHER
+            )
 
     except ValueError as e:
-        return RedirectResponse(url=f"/dashboard?error={str(e)}", status_code=status.HTTP_303_SEE_OTHER)
+        error_msg = str(e)
+        if request.headers.get("accept") == "application/json":
+            raise HTTPException(status_code=400, detail=error_msg)
+        return RedirectResponse(
+            url=f"/dashboard?error={error_msg}", 
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions as-is
     except Exception as e:
-        return RedirectResponse(url=f"/dashboard?error=An unexpected error occurred: {str(e)}", status_code=status.HTTP_303_SEE_OTHER)
+        print(f"Upload error: {e}")
+        error_msg = f"An unexpected error occurred: {str(e)}"
+        if request.headers.get("accept") == "application/json":
+            raise HTTPException(status_code=500, detail=error_msg)
+        return RedirectResponse(
+            url=f"/dashboard?error={error_msg}", 
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
+# Add error handling middleware for better debugging
+@app.exception_handler(400)
+async def bad_request_handler(request: Request, exc: HTTPException):
+    """Handle 400 errors with detailed logging"""
+    print(f"Bad Request - URL: {request.url}, Headers: {dict(request.headers)}")
+    print(f"Error: {exc.detail}")
+    
+    # If it's a multipart form error, redirect to dashboard with error
+    if "boundary" in str(exc.detail).lower() or "multipart" in str(exc.detail).lower():
+        return RedirectResponse(
+            url="/dashboard?error=File upload failed. Please try again with a valid image file.", 
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+    
+    # For API requests, return JSON error
+    if request.headers.get("accept") == "application/json":
+        return JSONResponse(
+            status_code=400,
+            content={"detail": exc.detail}
+        )
+    
+    # For form requests, redirect with error
+    return RedirectResponse(
+        url=f"/dashboard?error={exc.detail}", 
+        status_code=status.HTTP_303_SEE_OTHER
+    )
+
+# Add CORS headers for API requests
+@app.middleware("http")
+async def add_cors_header(request: Request, call_next):
+    response = await call_next(request)
+    
+    # Add CORS headers for API routes
+    if request.url.path.startswith("/api/"):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+    
+    return response
 
 # Health check endpoint for deployment
 @app.get("/health")
@@ -576,8 +884,8 @@ if __name__ == "__main__":
     import uvicorn
     # The key change is adding host="0.0.0.0"
     uvicorn.run(
-        "app:app", 
-        host="0.0.0.0", 
+        "app:app",
+        host="0.0.0.0",
         port=int(os.environ.get("PORT", 8000)), 
         reload=True
     )
