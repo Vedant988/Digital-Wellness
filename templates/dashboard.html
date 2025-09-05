@@ -909,599 +909,660 @@
     </div>
 
     <script>
-        // Global state
-        let currentDate = new Date();
-        let currentView = '{{ view }}';
-        let eventsData = {{ events_map | tojson if events_map else '{}' }};
-        let screenTimeData = {};
+// Global state
+let currentDate = new Date();
+let currentView = '{{ view }}';
+let eventsData = {{ events_map | tojson if events_map else '{}' }};
+let screenTimeData = {};
 
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
-            setupEventListeners();
+// Touch gesture variables
+let touchStartX = 0;
+let touchStartY = 0;
+
+// Initialize the app
+document.addEventListener('DOMContentLoaded', function() {
+    initializeApp();
+    setupEventListeners();
+    loadTodaysSummary();
+    setupUploadHandlers();
+    enhanceModalAnimations();
+});
+
+function initializeApp() {
+    // Set current date from URL parameters or default to today
+    const urlParams = new URLSearchParams(window.location.search);
+    const year = urlParams.get('year');
+    const month = urlParams.get('month');
+    const day = urlParams.get('day');
+    
+    if (year && month && day) {
+        currentDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    }
+
+    // Load screen time data
+    loadScreenTimeData();
+    
+    // Apply reduced motion preferences
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.documentElement.style.setProperty('--transition-fast', '0.01ms');
+        document.documentElement.style.setProperty('--transition-base', '0.01ms');
+        document.documentElement.style.setProperty('--transition-slow', '0.01ms');
+        document.documentElement.style.setProperty('--spring', '0.01ms');
+    }
+}
+
+function setupEventListeners() {
+    // Navigation buttons
+    document.getElementById('prevBtn')?.addEventListener('click', () => navigate(-1));
+    document.getElementById('nextBtn')?.addEventListener('click', () => navigate(1));
+
+    // Keyboard navigation
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Modal close on background click
+    const modal = document.getElementById('dayModal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target.id === 'dayModal') {
+                closeDayModal();
+            }
+        });
+    }
+
+    // Touch/swipe support for mobile
+    setupTouchHandlers();
+}
+
+function handleKeyDown(e) {
+    // Global keyboard shortcuts
+    if (e.key === 'ArrowLeft' && !e.target.classList.contains('calendar-day')) navigate(-1);
+    if (e.key === 'ArrowRight' && !e.target.classList.contains('calendar-day')) navigate(1);
+    if (e.key === 'Escape') closeDayModal();
+    
+    // Calendar day navigation
+    if (e.target.classList.contains('calendar-day')) {
+        const days = Array.from(document.querySelectorAll('.calendar-day[data-date]'));
+        const currentIndex = days.indexOf(e.target);
+        let newIndex = currentIndex;
+
+        switch(e.key) {
+            case 'ArrowLeft':
+                e.preventDefault();
+                newIndex = Math.max(0, currentIndex - 1);
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                newIndex = Math.min(days.length - 1, currentIndex + 1);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                newIndex = Math.max(0, currentIndex - 7);
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                newIndex = Math.min(days.length - 1, currentIndex + 7);
+                break;
+            case 'Enter':
+            case ' ':
+                e.preventDefault();
+                openDayModal(e.target.dataset.date);
+                break;
+        }
+
+        if (newIndex !== currentIndex && days[newIndex]) {
+            days[newIndex].focus();
+        }
+    }
+}
+
+function setupTouchHandlers() {
+    // Enhanced touch support with haptic feedback
+    document.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        if (!touchStartX || !touchStartY) return;
+        
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        
+        const diffX = touchStartX - touchEndX;
+        const diffY = touchStartY - touchEndY;
+        
+        // Horizontal swipes on calendar
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+            const calendarElement = e.target.closest('.calendar-container');
+            if (calendarElement) {
+                const isRTL = document.dir === 'rtl';
+                const direction = (diffX > 0) !== isRTL ? 1 : -1;
+                
+                // Add haptic feedback if available
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(10);
+                }
+                
+                navigate(direction);
+            }
+        }
+        
+        // Vertical swipe to close modal
+        if (Math.abs(diffY) > Math.abs(diffX) && diffY < -100) {
+            const modal = e.target.closest('#dayModal');
+            if (modal && modal.classList.contains('active')) {
+                closeDayModal();
+            }
+        }
+        
+        touchStartX = 0;
+        touchStartY = 0;
+    }, { passive: true });
+}
+
+function setupUploadHandlers() {
+    const uploadSection = document.getElementById('uploadSection');
+    const fileInput = document.getElementById('screenshot');
+
+    if (!uploadSection || !fileInput) return;
+
+    // Drag and drop handlers with enhanced styling
+    uploadSection.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadSection.classList.add('dragover');
+    });
+
+    uploadSection.addEventListener('dragleave', (e) => {
+        // Only remove if truly leaving the element
+        if (!uploadSection.contains(e.relatedTarget)) {
+            uploadSection.classList.remove('dragover');
+        }
+    });
+
+    uploadSection.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.startsWith('image/')) {
+            handleFileUpload(files[0]);
+        }
+    });
+
+    // File input change handler
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileUpload(e.target.files[0]);
+        }
+    });
+}
+
+async function handleFileUpload(file) {
+    const uploadSection = document.getElementById('uploadSection');
+    if (!uploadSection) return;
+    
+    const originalContent = uploadSection.innerHTML;
+    
+    // Show loading state with animation
+    uploadSection.innerHTML = `
+        <div class="loading">
+            <div class="spinner"></div>
+            <div>Processing screenshot...</div>
+        </div>
+    `;
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/upload', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json'
+            },
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Success - reload data and show success message
+            await loadScreenTimeData();
+            showTempMessage('✅ Screenshot processed successfully!', 'success');
+        } else {
+            // Error - show error message
+            showTempMessage(`❌ ${result.detail || 'Upload failed'}`, 'error');
+        }
+    } catch (error) {
+        console.error('Upload failed:', error);
+        showTempMessage('❌ Upload failed. Please try again.', 'error');
+    } finally {
+        // Restore original upload UI
+        uploadSection.innerHTML = originalContent;
+        setupUploadHandlers(); // Re-attach event listeners
+    }
+}
+
+function showTempMessage(message, type = 'info') {
+    // Create temporary message element
+    const messageEl = document.createElement('div');
+    messageEl.className = `message ${type}`;
+    messageEl.textContent = message;
+    
+    // Style the message
+    Object.assign(messageEl.style, {
+        position: 'fixed',
+        top: '80px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: '1000',
+        minWidth: '300px',
+        textAlign: 'center',
+        padding: '12px 24px',
+        borderRadius: '8px',
+        backgroundColor: type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6',
+        color: 'white',
+        fontSize: '14px',
+        fontWeight: '500',
+        boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+        transition: 'all 0.3s ease-out',
+        opacity: '0',
+        animation: 'slideInMessage 0.3s ease-out forwards'
+    });
+    
+    document.body.appendChild(messageEl);
+    
+    // Animate in
+    requestAnimationFrame(() => {
+        messageEl.style.opacity = '1';
+        messageEl.style.transform = 'translateX(-50%) translateY(0)';
+    });
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        messageEl.style.opacity = '0';
+        messageEl.style.transform = 'translateX(-50%) translateY(-20px)';
+        setTimeout(() => {
+            if (messageEl.parentNode) {
+                messageEl.parentNode.removeChild(messageEl);
+            }
+        }, 300);
+    }, 3000);
+}
+
+async function loadScreenTimeData() {
+    try {
+        const response = await fetch('/api/screentime');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Convert array to map for easier lookup
+            screenTimeData = {};
+            data.forEach(entry => {
+                screenTimeData[entry.date] = entry;
+            });
+            
+            updateCalendarWithData();
             loadTodaysSummary();
-            setupUploadHandlers();
-        });
+        }
+    } catch (error) {
+        console.error('Failed to load screen time data:', error);
+    }
+}
 
-        function initializeApp() {
-            // Set current date from URL parameters or default to today
-            const urlParams = new URLSearchParams(window.location.search);
-            const year = urlParams.get('year');
-            const month = urlParams.get('month');
-            const day = urlParams.get('day');
+function updateCalendarWithData() {
+    // Update calendar cells with screen time data
+    const calendarDays = document.querySelectorAll('.calendar-day[data-date]');
+    calendarDays.forEach(dayEl => {
+        const date = dayEl.dataset.date;
+        const data = screenTimeData[date];
+        
+        if (data) {
+            dayEl.classList.add('has-data');
             
-            if (year && month && day) {
-                currentDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            // Check if high usage (>8 hours)
+            const screenTime = data.totalScreenTime || '0m';
+            const minutes = parseTimeToMinutes(screenTime);
+            if (minutes > 480) {
+                dayEl.classList.add('high-usage');
             }
-
-            // Load screen time data
-            loadScreenTimeData();
-        }
-
-        function setupEventListeners() {
-            // Navigation buttons
-            document.getElementById('prevBtn').addEventListener('click', () => navigate(-1));
-            document.getElementById('nextBtn').addEventListener('click', () => navigate(1));
-
-            // Keyboard navigation
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'ArrowLeft') navigate(-1);
-                if (e.key === 'ArrowRight') navigate(1);
-                if (e.key === 'Escape') closeDayModal();
-            });
-
-            // Modal close on background click
-            document.getElementById('dayModal').addEventListener('click', (e) => {
-                if (e.target.id === 'dayModal') {
-                    closeDayModal();
-                }
-            });
-
-            // Touch/swipe support for mobile
-            setupTouchHandlers();
-        }
-
-        function setupTouchHandlers() {
-            let startX, startY, isDragging = false;
-            const modal = document.getElementById('dayModal');
             
-            // Calendar swipe navigation
-            const calendar = document.querySelector('.calendar-container');
-            calendar.addEventListener('touchstart', (e) => {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-                isDragging = false;
-            });
-
-            calendar.addEventListener('touchmove', (e) => {
-                if (!startX || !startY) return;
-                
-                const diffX = Math.abs(e.touches[0].clientX - startX);
-                const diffY = Math.abs(e.touches[0].clientY - startY);
-                
-                if (diffX > diffY && diffX > 50) {
-                    isDragging = true;
-                }
-            });
-
-            calendar.addEventListener('touchend', (e) => {
-                if (!isDragging || !startX) return;
-                
-                const endX = e.changedTouches[0].clientX;
-                const diff = startX - endX;
-                
-                if (Math.abs(diff) > 50) {
-                    navigate(diff > 0 ? 1 : -1);
-                }
-                
-                startX = null;
-                startY = null;
-                isDragging = false;
-            });
-
-            // Modal swipe to close
-            modal.addEventListener('touchstart', (e) => {
-                startY = e.touches[0].clientY;
-            });
-
-            modal.addEventListener('touchend', (e) => {
-                if (!startY) return;
-                
-                const endY = e.changedTouches[0].clientY;
-                const diff = endY - startY;
-                
-                if (diff > 100) {
-                    closeDayModal();
-                }
-                
-                startY = null;
-            });
+            // Add subtle animation when data is loaded
+            dayEl.style.animation = 'pulseData 0.6s ease-out';
         }
+    });
+}
 
-        function setupUploadHandlers() {
-            const uploadSection = document.getElementById('uploadSection');
-            const fileInput = document.getElementById('screenshot');
-            const uploadForm = document.getElementById('uploadForm');
-
-            // Drag and drop handlers
-            uploadSection.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadSection.classList.add('dragover');
-            });
-
-            uploadSection.addEventListener('dragleave', () => {
-                uploadSection.classList.remove('dragover');
-            });
-
-            uploadSection.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadSection.classList.remove('dragover');
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    fileInput.files = files;
-                    uploadForm.submit();
-                }
-            });
-
-            // File input change handler
-            fileInput.addEventListener('change', () => {
-                if (fileInput.files.length > 0) {
-                    uploadForm.submit();
-                }
-            });
-        }
-
-        async function loadScreenTimeData() {
-            try {
-                const response = await fetch('/api/screentime');
-                const data = await response.json();
-                
-                // Convert array to map for easier lookup
-                screenTimeData = {};
-                data.forEach(entry => {
-                    screenTimeData[entry.date] = entry;
-                });
-                
-                updateCalendarWithData();
-            } catch (error) {
-                console.error('Failed to load screen time data:', error);
-            }
-        }
-
-        function updateCalendarWithData() {
-            // Update calendar cells with screen time data
-            const calendarDays = document.querySelectorAll('.calendar-day[data-date]');
-            calendarDays.forEach(dayEl => {
-                const date = dayEl.dataset.date;
-                const data = screenTimeData[date];
-                
-                if (data) {
-                    dayEl.classList.add('has-data');
-                    
-                    // Check if high usage (>8 hours)
-                    const screenTime = data.totalScreenTime || '0m';
-                    const minutes = parseTimeToMinutes(screenTime);
-                    if (minutes > 480) {
-                        dayEl.classList.add('high-usage');
-                    }
-                }
-            });
-        }
-
-        function loadTodaysSummary() {
-            const today = new Date().toISOString().split('T')[0];
-            const todayData = screenTimeData[today];
+function loadTodaysSummary() {
+    const today = new Date().toISOString().split('T')[0];
+    const todayData = screenTimeData[today];
+    
+    const todayScreenTimeEl = document.getElementById('todayScreenTime');
+    const screenTimeTrendEl = document.getElementById('screenTimeTrend');
+    
+    if (todayData && todayScreenTimeEl) {
+        todayScreenTimeEl.textContent = todayData.totalScreenTime || '--';
+        
+        // Calculate trend (simplified)
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayKey = yesterday.toISOString().split('T')[0];
+        const yesterdayData = screenTimeData[yesterdayKey];
+        
+        if (yesterdayData && screenTimeTrendEl) {
+            const todayMinutes = parseTimeToMinutes(todayData.totalScreenTime || '0m');
+            const yesterdayMinutes = parseTimeToMinutes(yesterdayData.totalScreenTime || '0m');
+            const diff = todayMinutes - yesterdayMinutes;
             
-            const todayScreenTimeEl = document.getElementById('todayScreenTime');
-            const screenTimeTrendEl = document.getElementById('screenTimeTrend');
-            
-            if (todayData) {
-                todayScreenTimeEl.textContent = todayData.totalScreenTime || '--';
-                
-                // Calculate trend (simplified)
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                const yesterdayKey = yesterday.toISOString().split('T')[0];
-                const yesterdayData = screenTimeData[yesterdayKey];
-                
-                if (yesterdayData) {
-                    const todayMinutes = parseTimeToMinutes(todayData.totalScreenTime || '0m');
-                    const yesterdayMinutes = parseTimeToMinutes(yesterdayData.totalScreenTime || '0m');
-                    const diff = todayMinutes - yesterdayMinutes;
-                    
-                    if (diff > 0) {
-                        screenTimeTrendEl.innerHTML = `<span class="trend-up">↑ +${Math.abs(diff)}m vs yesterday</span>`;
-                    } else if (diff < 0) {
-                        screenTimeTrendEl.innerHTML = `<span class="trend-down">↓ -${Math.abs(diff)}m vs yesterday</span>`;
-                    } else {
-                        screenTimeTrendEl.innerHTML = '<span style="color: var(--text-muted);">Same as yesterday</span>';
-                    }
-                }
+            if (diff > 0) {
+                screenTimeTrendEl.innerHTML = `<span class="trend-up">↑ +${Math.abs(diff)}m vs yesterday</span>`;
+            } else if (diff < 0) {
+                screenTimeTrendEl.innerHTML = `<span class="trend-down">↓ -${Math.abs(diff)}m vs yesterday</span>`;
             } else {
-                todayScreenTimeEl.textContent = '--';
-                screenTimeTrendEl.innerHTML = '<span style="color: var(--text-muted);">No data for today</span>';
+                screenTimeTrendEl.innerHTML = '<span style="color: var(--text-muted);">Same as yesterday</span>';
             }
-
-            // Load weekly average (simplified calculation)
-            calculateWeeklyAverage();
         }
+    } else if (todayScreenTimeEl) {
+        todayScreenTimeEl.textContent = '--';
+        if (screenTimeTrendEl) {
+            screenTimeTrendEl.innerHTML = '<span style="color: var(--text-muted);">No data for today</span>';
+        }
+    }
 
-        function calculateWeeklyAverage() {
-            const weeklyAverageEl = document.getElementById('weeklyAverage');
-            const weeklyTrendEl = document.getElementById('weeklyTrend');
-            
-            // Get last 7 days
-            const today = new Date();
-            let totalMinutes = 0;
-            let daysWithData = 0;
-            
-            for (let i = 0; i < 7; i++) {
-                const date = new Date(today);
-                date.setDate(date.getDate() - i);
-                const dateKey = date.toISOString().split('T')[0];
-                const data = screenTimeData[dateKey];
-                
-                if (data && data.totalScreenTime) {
-                    totalMinutes += parseTimeToMinutes(data.totalScreenTime);
-                    daysWithData++;
-                }
-            }
-            
-            if (daysWithData > 0) {
-                const averageMinutes = Math.round(totalMinutes / daysWithData);
-                weeklyAverageEl.textContent = minutesToTimeStr(averageMinutes);
-                
-                // Simple trend indicator
-                if (averageMinutes > 480) {
-                    weeklyTrendEl.innerHTML = '<span class="trend-up">Above recommended limit</span>';
-                } else {
-                    weeklyTrendEl.innerHTML = '<span class="trend-down">Within healthy range</span>';
-                }
+    // Load weekly average
+    calculateWeeklyAverage();
+}
+
+function calculateWeeklyAverage() {
+    const weeklyAverageEl = document.getElementById('weeklyAverage');
+    const weeklyTrendEl = document.getElementById('weeklyTrend');
+    
+    if (!weeklyAverageEl) return;
+    
+    // Get last 7 days
+    const today = new Date();
+    let totalMinutes = 0;
+    let daysWithData = 0;
+    
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateKey = date.toISOString().split('T')[0];
+        const data = screenTimeData[dateKey];
+        
+        if (data && data.totalScreenTime) {
+            totalMinutes += parseTimeToMinutes(data.totalScreenTime);
+            daysWithData++;
+        }
+    }
+    
+    if (daysWithData > 0) {
+        const averageMinutes = Math.round(totalMinutes / daysWithData);
+        weeklyAverageEl.textContent = minutesToTimeStr(averageMinutes);
+        
+        if (weeklyTrendEl) {
+            // Simple trend indicator
+            if (averageMinutes > 480) {
+                weeklyTrendEl.innerHTML = '<span class="trend-up">Above recommended limit</span>';
             } else {
-                weeklyAverageEl.textContent = '--';
-                weeklyTrendEl.innerHTML = '<span style="color: var(--text-muted);">Insufficient data</span>';
+                weeklyTrendEl.innerHTML = '<span class="trend-down">Within healthy range</span>';
             }
         }
-
-        function navigate(direction) {
-            const params = new URLSearchParams(window.location.search);
-            let year = parseInt(params.get('year')) || currentDate.getFullYear();
-            let month = parseInt(params.get('month')) || currentDate.getMonth() + 1;
-            let day = parseInt(params.get('day')) || currentDate.getDate();
-
-            if (currentView === 'month') {
-                month += direction;
-                if (month > 12) {
-                    month = 1;
-                    year++;
-                } else if (month < 1) {
-                    month = 12;
-                    year--;
-                }
-            } else if (currentView === 'week') {
-                const currentWeekDate = new Date(year, month - 1, day);
-                currentWeekDate.setDate(currentWeekDate.getDate() + (direction * 7));
-                year = currentWeekDate.getFullYear();
-                month = currentWeekDate.getMonth() + 1;
-                day = currentWeekDate.getDate();
-            } else if (currentView === 'day') {
-                const currentDayDate = new Date(year, month - 1, day);
-                currentDayDate.setDate(currentDayDate.getDate() + direction);
-                year = currentDayDate.getFullYear();
-                month = currentDayDate.getMonth() + 1;
-                day = currentDayDate.getDate();
-            }
-
-            window.location.href = `/dashboard?view=${currentView}&year=${year}&month=${month}&day=${day}`;
+    } else {
+        weeklyAverageEl.textContent = '--';
+        if (weeklyTrendEl) {
+            weeklyTrendEl.innerHTML = '<span style="color: var(--text-muted);">Insufficient data</span>';
         }
+    }
+}
 
-        function switchView(view) {
-            const params = new URLSearchParams(window.location.search);
-            const year = params.get('year') || currentDate.getFullYear();
-            const month = params.get('month') || currentDate.getMonth() + 1;
-            const day = params.get('day') || currentDate.getDate();
-            
-            window.location.href = `/dashboard?view=${view}&year=${year}&month=${month}&day=${day}`;
+function navigate(direction) {
+    const params = new URLSearchParams(window.location.search);
+    let year = parseInt(params.get('year')) || currentDate.getFullYear();
+    let month = parseInt(params.get('month')) || currentDate.getMonth() + 1;
+    let day = parseInt(params.get('day')) || currentDate.getDate();
+
+    if (currentView === 'month') {
+        month += direction;
+        if (month > 12) {
+            month = 1;
+            year++;
+        } else if (month < 1) {
+            month = 12;
+            year--;
         }
+    } else if (currentView === 'week') {
+        const currentWeekDate = new Date(year, month - 1, day);
+        currentWeekDate.setDate(currentWeekDate.getDate() + (direction * 7));
+        year = currentWeekDate.getFullYear();
+        month = currentWeekDate.getMonth() + 1;
+        day = currentWeekDate.getDate();
+    } else if (currentView === 'day') {
+        const currentDayDate = new Date(year, month - 1, day);
+        currentDayDate.setDate(currentDayDate.getDate() + direction);
+        year = currentDayDate.getFullYear();
+        month = currentDayDate.getMonth() + 1;
+        day = currentDayDate.getDate();
+    }
 
-        function openDayModal(date) {
-            const modal = document.getElementById('dayModal');
-            const modalContent = document.getElementById('modalContent');
-            const data = screenTimeData[date];
-            
-            // Format date for display
-            const dateObj = new Date(date + 'T12:00:00');
-            const formattedDate = dateObj.toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
+    window.location.href = `/dashboard?view=${currentView}&year=${year}&month=${month}&day=${day}`;
+}
 
-            let content = `<h3 class="modal-title">${formattedDate}</h3>`;
-            
-            if (data) {
-                const minutes = parseTimeToMinutes(data.totalScreenTime || '0m');
-                const percentage = Math.min((minutes / 480) * 100, 100); // Max 8 hours
-                const circumference = 2 * Math.PI * 34;
-                const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
-                
-                content += `
-                    <div style="text-align: center; margin-bottom: 24px;">
-                        <div class="progress-ring">
-                            <svg width="80" height="80">
-                                <circle class="progress-ring-circle" cx="40" cy="40" r="34"></circle>
-                                <circle class="progress-ring-progress" cx="40" cy="40" r="34"
-                                        stroke-dasharray="${strokeDasharray}"></circle>
-                            </svg>
-                            <div class="progress-ring-text">
-                                <div>${data.totalScreenTime}</div>
-                                <div style="font-size: 10px; opacity: 0.7;">Screen Time</div>
-                            </div>
-                        </div>
+function switchView(view) {
+    const params = new URLSearchParams(window.location.search);
+    const year = params.get('year') || currentDate.getFullYear();
+    const month = params.get('month') || currentDate.getMonth() + 1;
+    const day = params.get('day') || currentDate.getDate();
+    
+    window.location.href = `/dashboard?view=${view}&year=${year}&month=${month}&day=${day}`;
+}
+
+function openDayModal(date) {
+    const modal = document.getElementById('dayModal');
+    const modalContent = document.getElementById('modalContent');
+    
+    if (!modal || !modalContent) return;
+    
+    const data = screenTimeData[date];
+    
+    // Format date for display
+    const dateObj = new Date(date + 'T12:00:00');
+    const formattedDate = dateObj.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    let content = `<h3 class="modal-title">${formattedDate}</h3>`;
+    
+    if (data) {
+        const minutes = parseTimeToMinutes(data.totalScreenTime || '0m');
+        const percentage = Math.min((minutes / 480) * 100, 100); // Max 8 hours
+        const circumference = 2 * Math.PI * 34;
+        const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
+        
+        content += `
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div class="progress-ring">
+                    <svg width="80" height="80">
+                        <circle class="progress-ring-circle" cx="40" cy="40" r="34"></circle>
+                        <circle class="progress-ring-progress" cx="40" cy="40" r="34"
+                                stroke-dasharray="0 ${circumference}"></circle>
+                    </svg>
+                    <div class="progress-ring-text">
+                        <div>${data.totalScreenTime}</div>
+                        <div style="font-size: 10px; opacity: 0.7;">Screen Time</div>
                     </div>
-                `;
-                
-                if (data.topApps && data.topApps.length > 0) {
-                    content += '<div class="app-pills">';
-                    data.topApps.forEach(app => {
-                        content += `
-                            <div class="app-pill">
-                                <span class="app-name">${app.appName}</span>
-                                <span class="app-time">${app.timeUsed}</span>
-                            </div>
-                        `;
-                    });
-                    content += '</div>';
-                }
-            } else {
-                content += `
-                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">
-                        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
-                        <div>No data available for this date</div>
-                        <div style="font-size: 12px; margin-top: 8px;">Upload a screenshot to track your wellness</div>
-                    </div>
-                `;
-            }
-            
-            modalContent.innerHTML = content;
-            modal.classList.add('active');
-            
-            // Trap focus in modal
-            modal.focus();
-        }
-
-        function closeDayModal() {
-            const modal = document.getElementById('dayModal');
-            modal.classList.remove('active');
-        }
-
-        async function loadScreenTimeData() {
-            try {
-                const response = await fetch('/api/screentime');
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    // Convert array to map
-                    screenTimeData = {};
-                    data.forEach(entry => {
-                        screenTimeData[entry.date] = entry;
-                    });
-                    
-                    updateCalendarWithData();
-                    loadTodaysSummary();
-                }
-            } catch (error) {
-                console.error('Failed to load screen time data:', error);
-            }
-        }
-
-        function updateCalendarWithData() {
-            const calendarDays = document.querySelectorAll('.calendar-day[data-date]');
-            calendarDays.forEach(dayEl => {
-                const date = dayEl.dataset.date;
-                const data = screenTimeData[date];
-                
-                if (data) {
-                    dayEl.classList.add('has-data');
-                    
-                    // Check for high usage
-                    const minutes = parseTimeToMinutes(data.totalScreenTime || '0m');
-                    if (minutes > 480) { // 8 hours
-                        dayEl.classList.add('high-usage');
-                    }
-                }
-            });
-        }
-
-        // Utility functions
-        function parseTimeToMinutes(timeStr) {
-            if (!timeStr) return 0;
-            const hours = (timeStr.match(/(\d+)h/) || [0, 0])[1];
-            const minutes = (timeStr.match(/(\d+)m/) || [0, 0])[1];
-            return parseInt(hours) * 60 + parseInt(minutes);
-        }
-
-        function minutesToTimeStr(minutes) {
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            if (hours > 0 && mins > 0) {
-                return `${hours}h ${mins}m`;
-            } else if (hours > 0) {
-                return `${hours}h`;
-            } else {
-                return `${mins}m`;
-            }
-        }
-
-        // Enhanced file upload with progress
-        function setupUploadHandlers() {
-            const uploadSection = document.getElementById('uploadSection');
-            const fileInput = document.getElementById('screenshot');
-            const uploadForm = document.getElementById('uploadForm');
-
-            // Drag and drop styling
-            uploadSection.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadSection.classList.add('dragover');
-            });
-
-            uploadSection.addEventListener('dragleave', () => {
-                uploadSection.classList.remove('dragover');
-            });
-
-            uploadSection.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadSection.classList.remove('dragover');
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0 && files[0].type.startsWith('image/')) {
-                    handleFileUpload(files[0]);
-                }
-            });
-
-            fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    handleFileUpload(e.target.files[0]);
-                }
-            });
-        }
-
-        async function handleFileUpload(file) {
-            const uploadSection = document.getElementById('uploadSection');
-            const originalContent = uploadSection.innerHTML;
-            
-            // Show loading state
-            uploadSection.innerHTML = `
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <div>Processing screenshot...</div>
                 </div>
-            `;
-
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json'
-                    },
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    // Success - reload data and show success message
-                    await loadScreenTimeData();
-                    showTempMessage('✅ Screenshot processed successfully!', 'success');
-                } else {
-                    // Error - show error message
-                    showTempMessage(`❌ ${result.detail}`, 'error');
-                }
-            } catch (error) {
-                console.error('Upload failed:', error);
-                showTempMessage('❌ Upload failed. Please try again.', 'error');
-            } finally {
-                // Restore original upload UI
-                uploadSection.innerHTML = originalContent;
-                setupUploadHandlers(); // Re-attach event listeners
-            }
-        }
-
-        function showTempMessage(message, type) {
-            // Create temporary message element
-            const messageEl = document.createElement('div');
-            messageEl.className = `message ${type}`;
-            messageEl.textContent = message;
-            messageEl.style.position = 'fixed';
-            messageEl.style.top = '80px';
-            messageEl.style.left = '50%';
-            messageEl.style.transform = 'translateX(-50%)';
-            messageEl.style.zIndex = '1000';
-            messageEl.style.minWidth = '300px';
-            messageEl.style.textAlign = 'center';
-            
-            document.body.appendChild(messageEl);
-            
-            // Remove after 3 seconds
-            setTimeout(() => {
-                messageEl.style.opacity = '0';
-                setTimeout(() => {
-                    document.body.removeChild(messageEl);
-                }, 300);
-            }, 3000);
-        }
-
-        // Keyboard accessibility
-        document.addEventListener('keydown', (e) => {
-            // Calendar navigation with arrow keys
-            if (e.target.classList.contains('calendar-day')) {
-                const days = Array.from(document.querySelectorAll('.calendar-day[data-date]'));
-                const currentIndex = days.indexOf(e.target);
-                let newIndex = currentIndex;
-
-                switch(e.key) {
-                    case 'ArrowLeft':
-                        e.preventDefault();
-                        newIndex = Math.max(0, currentIndex - 1);
-                        break;
-                    case 'ArrowRight':
-                        e.preventDefault();
-                        newIndex = Math.min(days.length - 1, currentIndex + 1);
-                        break;
-                    case 'ArrowUp':
-                        e.preventDefault();
-                        newIndex = Math.max(0, currentIndex - 7);
-                        break;
-                    case 'ArrowDown':
-                        e.preventDefault();
-                        newIndex = Math.min(days.length - 1, currentIndex + 7);
-                        break;
-                    case 'Enter':
-                    case ' ':
-                        e.preventDefault();
-                        openDayModal(e.target.dataset.date);
-                        break;
-                }
-
-                if (newIndex !== currentIndex && days[newIndex]) {
-                    days[newIndex].focus();
-                }
-            }
-        });
-
-        // Initialize progress ring animation on day modal open
-        function animateProgressRing() {
-            const progressCircle = document.querySelector('.progress-ring-progress');
-            if (progressCircle) {
-                // Trigger animation
-                setTimeout(() => {
-                    progressCircle.style.transition = 'stroke-dasharray 0.8s ease-out';
-                }, 100);
-            }
-        }
-
-        // Enhanced modal opening with animation
-        const originalOpenDayModal = openDayModal;
-        openDayModal = function(date) {
-            originalOpenDayModal(date);
-            setTimeout(animateProgressRing, 100);
-        };
-
-        // Auto-refresh data every 5 minutes
-        setInterval(loadScreenTimeData, 5 * 60 * 1000);
-
-        // Service worker registration for offline support (optional)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                // Register service worker if you implement one
-                console.log('PWA ready for service worker');
+            </div>
+        `;
+        
+        if (data.topApps && data.topApps.length > 0) {
+            content += '<div class="app-pills">';
+            data.topApps.forEach(app => {
+                content += `
+                    <div class="app-pill">
+                        <span class="app-name">${app.appName}</span>
+                        <span class="app-time">${app.timeUsed}</span>
+                    </div>
+                `;
             });
+            content += '</div>';
         }
-    </script>
+    } else {
+        content += `
+            <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+                <div>No data available for this date</div>
+                <div style="font-size: 12px; margin-top: 8px;">Upload a screenshot to track your wellness</div>
+            </div>
+        `;
+    }
+    
+    modalContent.innerHTML = content;
+    
+    // Enhanced modal opening with spring animation
+    modal.style.transform = 'translateY(100%)';
+    modal.classList.add('active');
+    
+    // Trigger animation on next frame
+    requestAnimationFrame(() => {
+        modal.style.transition = 'transform 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        modal.style.transform = 'translateY(0)';
+    });
+    
+    // Animate progress ring if data exists
+    setTimeout(() => {
+        if (data) {
+            animateProgressRing();
+        }
+    }, 200);
+    
+    // Trap focus in modal
+    modal.focus();
+}
+
+function closeDayModal() {
+    const modal = document.getElementById('dayModal');
+    if (!modal) return;
+    
+    modal.style.transform = 'translateY(100%)';
+    
+    setTimeout(() => {
+        modal.classList.remove('active');
+        modal.style.transition = '';
+        modal.style.transform = '';
+    }, 300);
+}
+
+function enhanceModalAnimations() {
+    // This function is called during initialization to set up modal enhancements
+    const modal = document.getElementById('dayModal');
+    if (!modal) return;
+    
+    // Add CSS for smooth animations if not already present
+    const style = document.createElement('style');
+    style.textContent = `
+        .message {
+            transform: translateX(-50%) translateY(-20px);
+        }
+        @keyframes slideInMessage {
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        @keyframes pulseData {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+function animateProgressRing() {
+    const progressCircle = document.querySelector('.progress-ring-progress');
+    if (!progressCircle) return;
+    
+    const modal = document.getElementById('dayModal');
+    const modalContent = document.getElementById('modalContent');
+    
+    if (!modal || !modalContent) return;
+    
+    // Get the percentage from the data
+    const dateTitle = modalContent.querySelector('.modal-title');
+    if (!dateTitle) return;
+    
+    // Extract date from title and find corresponding data
+    const titleText = dateTitle.textContent;
+    const dateStr = Object.keys(screenTimeData).find(date => {
+        const dateObj = new Date(date + 'T12:00:00');
+        const formatted = dateObj.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        return formatted === titleText;
+    });
+    
+    if (dateStr && screenTimeData[dateStr]) {
+        const data = screenTimeData[dateStr];
+        const minutes = parseTimeToMinutes(data.totalScreenTime || '0m');
+        const percentage = Math.min((minutes / 480) * 100, 100);
+        const circumference = 2 * Math.PI * 34;
+        const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
+        
+        // Animate from 0 to target
+        progressCircle.style.transition = 'stroke-dasharray 0.8s ease-out';
+        progressCircle.style.strokeDasharray = strokeDasharray;
+    }
+}
+
+// Utility functions
+function parseTimeToMinutes(timeStr) {
+    if (!timeStr) return 0;
+    const hours = (timeStr.match(/(\d+)h/) || [0, 0])[1];
+    const minutes = (timeStr.match(/(\d+)m/) || [0, 0])[1];
+    return parseInt(hours) * 60 + parseInt(minutes);
+}
+
+function minutesToTimeStr(minutes) {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0 && mins > 0) {
+        return `${hours}h ${mins}m`;
+    } else if (hours > 0) {
+        return `${hours}h`;
+    } else {
+        return `${mins}m`;
+    }
+}
+
+// Auto-refresh data every 5 minutes
+setInterval(loadScreenTimeData, 5 * 60 * 1000);
+
+// Service worker registration for offline support (optional)
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        console.log('PWA ready for service worker');
+        // Register service worker here if you implement one
+    });
+}
+
+// Performance optimization: preload next/previous month data
+function preloadAdjacentData() {
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+    
+    // This could be enhanced to prefetch data for adjacent months
+    // Implementation depends on your backend API structure
+}
+
+// Initialize preloading after initial load
+setTimeout(preloadAdjacentData, 2000);
+</script>
 </body>
 </html>

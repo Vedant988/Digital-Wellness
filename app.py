@@ -46,8 +46,6 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = "your-groq-api-key"
 
     # --- Email Settings ---
-    # IMPORTANT: Use a Google App Password if using Gmail.
-    # https://support.google.com/accounts/answer/185833
     MAIL_USERNAME: str = "your-email@gmail.com"
     MAIL_PASSWORD: str = "your-google-app-password"
     MAIL_FROM: EmailStr = "your-email@gmail.com"
@@ -89,7 +87,6 @@ conf = ConnectionConfig(
 async def startup_db_client():
     app.mongodb_client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGO_DETAILS)
     app.mongodb = app.mongodb_client.get_database("wellness_dbi")
-    # Initialize Groq client on startup
     app.groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
 
 @app.on_event("shutdown")
@@ -885,7 +882,7 @@ if __name__ == "__main__":
     # The key change is adding host="0.0.0.0"
     uvicorn.run(
         "app:app",
-        host="0.0.0.0",
+        # host="0.0.0.0",
         port=int(os.environ.get("PORT", 8000)), 
         reload=True
     )

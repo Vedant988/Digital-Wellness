@@ -6,7 +6,26 @@
     <title>Student Analytics - {{ student.email }}</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
-        /* --- General Reset & Base Styles --- */
+        /* --- Enhanced Color Palette & Base Styles --- */
+        :root {
+            --primary-accent: #5c8a8a;
+            --background-primary: #fafafa;
+            --background-card: #ffffff;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --text-tertiary: #a1a1a6;
+            --border-light: #e5e5e7;
+            --shadow-soft: 0 4px 20px rgba(0,0,0,0.04);
+            --shadow-hover: 0 8px 30px rgba(0,0,0,0.08);
+            --status-positive: #d4f4dd;
+            --status-positive-text: #2d5233;
+            --status-negative: #ffe4e1;
+            --status-negative-text: #5e2e2a;
+            --status-neutral: #f0f0f1;
+            --status-neutral-text: #515154;
+            --gradient-primary: linear-gradient(135deg, var(--primary-accent) 0%, rgba(92,138,138,0.7) 100%);
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -14,26 +33,29 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f8f9fa;
-            color: #343a40;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background-primary);
+            color: var(--text-primary);
             line-height: 1.6;
+            font-size: 16px;
         }
 
-        /* --- Header & Navigation --- */
+        /* --- Header Enhancement --- */
         .header {
-            background: white;
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background: var(--background-card);
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow-soft);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #dee2e6;
+            backdrop-filter: blur(20px);
         }
         
         .header h1 {
-            color: #343a40;
-            font-size: 1.5rem;
+            color: var(--text-primary);
+            font-size: 1.75rem;
+            font-weight: 300;
+            letter-spacing: -0.02em;
         }
         
         .nav-controls {
@@ -43,158 +65,342 @@
         }
         
         .back-btn, .logout-btn {
-            padding: 0.5rem 1rem;
+            padding: 0.75rem 1.5rem;
             color: white;
             text-decoration: none;
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
             font-weight: 500;
+            font-size: 0.95rem;
         }
         
-        .back-btn { background-color: #007bff; }
-        .back-btn:hover { background-color: #0056b3; }
-        .logout-btn { background-color: #6c757d; }
-        .logout-btn:hover { background-color: #5a6268; }
+        .back-btn { 
+            background: var(--gradient-primary);
+            box-shadow: 0 4px 15px rgba(92,138,138,0.3);
+        }
+        .back-btn:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(92,138,138,0.4);
+        }
+        .logout-btn { 
+            background-color: var(--text-tertiary);
+        }
+        .logout-btn:hover { 
+            background-color: var(--text-secondary);
+            transform: translateY(-2px);
+        }
 
-        /* --- Main Content Layout --- */
+        /* --- Main Content & Cards --- */
         .main-content {
             max-width: 1400px;
             margin: 2rem auto;
             padding: 0 2rem;
         }
         
-        /* --- Components --- */
         .card {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            background: var(--background-card);
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: var(--shadow-soft);
             margin-bottom: 2rem;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-2px);
         }
 
-        .student-header {
+        /* --- Student Header Redesign --- */
+        .student-overview {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            gap: 1.5rem;
+            align-items: flex-start;
+            gap: 2rem;
             flex-wrap: wrap;
         }
         
-        .student-details h2 {
-            color: #495057;
-            margin-bottom: 0.5rem;
-        }
-        
-        .roll-number {
-            font-family: 'SF Mono', 'Courier New', monospace;
-            background-color: #e9ecef;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #495057;
-        }
-        
-        .improvement-indicator {
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 600;
+        .student-info {
+            flex: 1;
             min-width: 300px;
         }
         
-        .improvement-positive { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .improvement-negative { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .improvement-neutral { background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
-
-        .trends-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        .student-info h2 {
+            color: var(--text-primary);
+            font-size: 2.25rem;
+            font-weight: 300;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.02em;
+        }
+        
+        .roll-number {
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+            background: var(--background-primary);
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: inline-block;
+            border: 1px solid var(--border-light);
+        }
+        
+        .summary-stats {
+            display: flex;
             gap: 1.5rem;
-            margin-top: 1rem;
+            align-items: center;
         }
         
-        .trend-card {
-            padding: 1.5rem;
-            border-radius: 8px;
+        .improvement-pill {
+            padding: 1rem 1.5rem;
+            border-radius: 25px;
             text-align: center;
-            border-left: 5px solid;
-        }
-        
-        .trend-current { background-color: #e3f2fd; border-color: #2196f3; }
-        .trend-previous { background-color: #f3e5f5; border-color: #9c27b0; }
-        .trend-change { background-color: #e8f5e9; border-color: #4caf50; }
-        .trend-change.negative { background-color: #ffebee; border-color: #f44336; }
-        
-        .trend-number {
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
-        
-        .trend-label {
-            color: #6c757d;
+            font-weight: 600;
             font-size: 0.9rem;
+            min-width: 180px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .improvement-pill::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .improvement-positive { 
+            background: var(--status-positive); 
+            color: var(--status-positive-text);
+        }
+        .improvement-negative { 
+            background: var(--status-negative); 
+            color: var(--status-negative-text);
+        }
+        .improvement-neutral { 
+            background: var(--status-neutral); 
+            color: var(--status-neutral-text);
         }
 
+        /* --- Condensed Weekly Summary --- */
+        .weekly-summary {
+            background: linear-gradient(135deg, var(--background-card) 0%, var(--background-primary) 100%);
+            padding: 1.5rem 2rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-light);
+            text-align: center;
+        }
+        
+        .summary-text {
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .summary-highlight {
+            color: var(--primary-accent);
+            font-weight: 600;
+        }
+
+        /* --- Enhanced Charts Section --- */
         .charts-section {
             display: grid;
             grid-template-columns: 2fr 1fr;
             gap: 2rem;
         }
         
-        .card h3 {
+        .chart-card h3 {
             margin-bottom: 1.5rem;
-            color: #495057;
+            color: var(--text-primary);
             text-align: center;
-            font-weight: 600;
+            font-weight: 400;
+            font-size: 1.5rem;
+            letter-spacing: -0.01em;
         }
         
-        /* THIS IS THE NEW STYLE FOR THE CHART CONTAINER */
+        .chart-controls {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .chart-toggle {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-light);
+            background: var(--background-card);
+            color: var(--text-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .chart-toggle.active {
+            border-color: var(--primary-accent);
+            background: var(--primary-accent);
+            color: white;
+        }
+        
         .chart-wrapper {
             position: relative;
-            height: 400px;
+            height: 350px;
             width: 100%;
         }
 
+        /* --- Enhanced Data Table --- */
+        .table-wrapper {
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border-light);
+        }
+        
         .data-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 1rem;
-        }
-        
-        .data-table th,
-        .data-table td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #e9ecef;
         }
         
         .data-table th {
-            background-color: #f8f9fa;
+            padding: 1.5rem 1.25rem;
+            text-align: left;
+            background: var(--background-primary);
             font-weight: 600;
-            color: #495057;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 0.95rem;
+            letter-spacing: -0.01em;
+        }
+        
+        .data-table th:hover {
+            background: var(--border-light);
+        }
+        
+        .data-table th::after {
+            content: '↕';
+            float: right;
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+        }
+        
+        .data-table td {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border-light);
+            position: relative;
+            font-size: 0.95rem;
+        }
+        
+        .data-table tbody tr {
+            transition: all 0.3s ease;
+        }
+        
+        .data-table tbody tr:nth-child(even) {
+            background-color: rgba(250,250,250,0.5);
         }
         
         .data-table tbody tr:hover {
-            background-color: #f1f3f5;
+            background: linear-gradient(90deg, var(--background-card), var(--background-primary));
+            transform: scale(1.002);
         }
         
-        .app-list { list-style: none; }
-        .app-list li { padding: 0.2rem 0; }
-        .no-data { text-align: center; padding: 3rem; color: #6c757d; }
+        /* --- Screen Time Visual Bars --- */
+        .screen-time-cell {
+            position: relative;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .time-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: var(--gradient-primary);
+            border-radius: 2px;
+            transition: width 0.6s ease-in-out;
+        }
+        
+        .app-list {
+            list-style: none;
+            font-size: 0.9rem;
+        }
+        
+        .app-list li {
+            padding: 0.25rem 0;
+            color: var(--text-secondary);
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-tertiary);
+        }
+        
+        .no-data h3 {
+            font-weight: 300;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
         
         /* --- Responsive Design --- */
         @media (max-width: 1024px) {
-            .charts-section { grid-template-columns: 1fr; }
+            .charts-section { 
+                grid-template-columns: 1fr; 
+            }
+            .chart-wrapper { 
+                height: 300px; 
+            }
         }
         
         @media (max-width: 768px) {
-            .header { flex-direction: column; gap: 1rem; }
-            .student-header { flex-direction: column; text-align: center; }
-            .main-content { padding: 1rem; margin-top: 1rem; }
-            /* Adjust chart height on smaller screens */
-            .chart-wrapper { height: 300px; } 
+            .header { 
+                flex-direction: column; 
+                gap: 1rem; 
+                padding: 1rem;
+            }
+            .student-overview { 
+                flex-direction: column; 
+                text-align: center; 
+            }
+            .summary-stats {
+                flex-direction: column;
+            }
+            .main-content { 
+                padding: 1rem; 
+                margin-top: 1rem; 
+            }
+            .card {
+                padding: 1.5rem;
+            }
+            .student-info h2 {
+                font-size: 1.75rem;
+            }
+        }
+        
+        /* --- Loading Animation --- */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-light);
+            border-radius: 50%;
+            border-top-color: var(--primary-accent);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -208,60 +414,72 @@
     </header>
     
     <main class="main-content">
+        <!-- Enhanced Student Overview with Dynamic Data -->
         <section class="card">
-            <div class="student-header">
-                <div class="student-details">
+            <div class="student-overview">
+                <div class="student-info">
                     <h2>{{ student.email }}</h2>
                     {% if student_roll %}
                     <div class="roll-number">{{ student_roll.upper() }}</div>
                     {% endif %}
                 </div>
-                <div class="improvement-indicator {% if percentage_change < -10 %}improvement-positive{% elif percentage_change > 10 %}improvement-negative{% else %}improvement-neutral{% endif %}">
-                    {% if percentage_change < -10 %}
-                        📈 Improvement: {{ "%.1f"|format(percentage_change|abs) }}% decrease
-                    {% elif percentage_change > 10 %}
-                        📉 Attention: {{ "%.1f"|format(percentage_change) }}% increase
-                    {% else %}
-                        📊 Stable: {{ "%.1f"|format(percentage_change|abs) }}% change
-                    {% endif %}
+                <div class="summary-stats">
+                    <div class="improvement-pill {% if percentage_change < -10 %}improvement-positive{% elif percentage_change > 10 %}improvement-negative{% else %}improvement-neutral{% endif %}">
+                        {% if percentage_change < -10 %}
+                            📈 Improved {{ "%.1f"|format(percentage_change|abs) }}% decrease
+                        {% elif percentage_change > 10 %}
+                            📉 Attention {{ "%.1f"|format(percentage_change) }}% increase
+                        {% else %}
+                            📊 Stable {{ "%.1f"|format(percentage_change|abs) }}% change
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </section>
         
+        <!-- Dynamic Weekly Summary -->
+        {% if weeks_data and weeks_data|length >= 2 %}
         <section class="card">
-            <h3>Weekly Trends Analysis</h3>
-            <div class="trends-grid">
-                {% for week in weeks_data[:2] %}
-                <div class="trend-card {% if loop.index0 == 0 %}trend-current{% else %}trend-previous{% endif %}">
-                    <div class="trend-number">
-                        {% set hours = week.average_minutes // 60 %}
-                        {% set minutes = week.average_minutes % 60 %}
-                        {% if hours > 0 %}{{ hours }}h {% endif %}{% if minutes > 0 or hours == 0 %}{{ minutes }}m{% endif %}
-                    </div>
-                    <div class="trend-label">{{ week.week_label }} (Avg)</div>
-                    <div class="trend-label">{{ week.days_logged }}/7 days logged</div>
-                </div>
-                {% endfor %}
-
-                <div class="trend-card trend-change {% if percentage_change > 0 %}negative{% endif %}">
-                    <div class="trend-number">
-                        {% if percentage_change > 0 %}+{% endif %}{{ "%.1f"|format(percentage_change) }}%
-                    </div>
-                    <div class="trend-label">Weekly Change</div>
+            <div class="weekly-summary">
+                <div class="summary-text">
+                    Average screen time changed from 
+                    <span class="summary-highlight">
+                        {% set prev_hours = weeks_data[1].average_minutes // 60 %}
+                        {% set prev_minutes = weeks_data[1].average_minutes % 60 %}
+                        {% if prev_hours > 0 %}{{ prev_hours }}h {% endif %}{% if prev_minutes > 0 or prev_hours == 0 %}{{ prev_minutes }}m{% endif %}
+                    </span> ({{ weeks_data[1].week_label }}) to 
+                    <span class="summary-highlight">
+                        {% set curr_hours = weeks_data[0].average_minutes // 60 %}
+                        {% set curr_minutes = weeks_data[0].average_minutes % 60 %}
+                        {% if curr_hours > 0 %}{{ curr_hours }}h {% endif %}{% if curr_minutes > 0 or curr_hours == 0 %}{{ curr_minutes }}m{% endif %}
+                    </span> ({{ weeks_data[0].week_label }})
+                    — a <span class="summary-highlight">
+                        {% if percentage_change < 0 %}{{ "%.1f"|format(percentage_change|abs) }}% improvement{% else %}{{ "%.1f"|format(percentage_change) }}% increase{% endif %}
+                    </span>
                 </div>
             </div>
         </section>
+        {% endif %}
         
+        <!-- Enhanced Charts with Dynamic Data -->
         {% if weeks_data and weeks_data[0].daily_data %}
         <section class="charts-section">
-            <div class="card">
+            <div class="card chart-card">
                 <h3>Current Week Pattern</h3>
+                <div class="chart-controls">
+                    <button class="chart-toggle active" onclick="toggleWeeklyChart('bar')">Bar Chart</button>
+                    <button class="chart-toggle" onclick="toggleWeeklyChart('line')">Line Chart</button>
+                </div>
                 <div class="chart-wrapper">
                     <canvas id="weeklyChart"></canvas>
                 </div>
             </div>
-            <div class="card">
+            <div class="card chart-card">
                 <h3>4-Week Trend</h3>
+                <div class="chart-controls">
+                    <button class="chart-toggle active" onclick="toggleTrendChart(false)">Trend Only</button>
+                    <button class="chart-toggle" onclick="toggleTrendChart(true)">Show Average</button>
+                </div>
                 <div class="chart-wrapper">
                     <canvas id="trendChart"></canvas>
                 </div>
@@ -269,41 +487,47 @@
         </section>
         {% endif %}
         
+        <!-- Enhanced Data Table with Dynamic Data -->
         <section class="card">
             <h3>Detailed Screen Time Records</h3>
             {% if data %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Total Screen Time</th>
-                        <th>Top Apps</th>
-                        <th>Uploaded On</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in data %}
-                    <tr>
-                        <td>{{ entry.date }}</td>
-                        <td><strong>{{ entry.totalScreenTime }}</strong></td>
-                        <td>
-                            <ul class="app-list">
-                                {% for app in entry.topApps %}
-                                <li>{{ app.appName }}: {{ app.timeUsed }}</li>
-                                {% endfor %}
-                            </ul>
-                        </td>
-                        <td>
-                            {% if entry.uploaded_at %}
-                            {{ entry.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
-                            {% else %}
-                            N/A
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table class="data-table" id="dataTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Date</th>
+                            <th onclick="sortTable(1)">Total Screen Time</th>
+                            <th onclick="sortTable(2)">Top Apps</th>
+                            <th onclick="sortTable(3)">Uploaded On</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in data %}
+                        <tr>
+                            <td>{{ entry.date }}</td>
+                            <td class="screen-time-cell">
+    <strong>{{ entry.totalScreenTime }}</strong>
+    <div class="time-bar" style="width: {{ entry.bar_width }}%;"></div>
+</td>
+                            <td>
+                                <ul class="app-list">
+                                    {% for app in entry.topApps %}
+                                    <li>{{ app.appName }}: {{ app.timeUsed }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                            <td>
+                                {% if entry.uploaded_at %}
+                                {{ entry.uploaded_at.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
             <div class="no-data">
                 <h3>No Data Available</h3>
@@ -314,74 +538,335 @@
     </main>
     
     <script>
-        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        Chart.defaults.color = '#6c757d';
+        // Enhanced Chart Configuration
+        Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif';
+        Chart.defaults.color = '#86868b';
+        Chart.defaults.borderColor = '#e5e5e7';
+        Chart.defaults.backgroundColor = 'rgba(92,138,138,0.1)';
 
-        {% if weeks_data and weeks_data[0].daily_data %}
-        
-        const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
-        const weeklyChart = new Chart(weeklyCtx, {
-            type: 'bar',
-            data: {
+        let weeklyChart, trendChart;
+
+        // Initialize charts with dynamic data
+        function initCharts() {
+            {% if weeks_data and weeks_data[0].daily_data %}
+            
+            // Weekly Chart with dynamic data
+            const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+            const weeklyData = {
                 labels: [{% for day in weeks_data[0].daily_data %}'{{ day.day }}'{% if not loop.last %},{% endif %}{% endfor %}],
-                datasets: [{
-                    label: 'Screen Time (hours)',
-                    data: [{% for day in weeks_data[0].daily_data %}{{ (day.minutes / 60)|round(1) }}{% if not loop.last %},{% endif %}{% endfor %}],
-                    backgroundColor: 'rgba(0, 123, 255, 0.7)',
-                    borderColor: 'rgba(0, 123, 255, 1)',
-                    borderWidth: 2,
-                    borderRadius: 5,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { callback: (value) => value + 'h' },
-                        grid: { color: '#e9ecef' }
+                data: [{% for day in weeks_data[0].daily_data %}{{ (day.minutes / 60)|round(1) }}{% if not loop.last %},{% endif %}{% endfor %}]
+            };
+            
+            weeklyChart = new Chart(weeklyCtx, {
+                type: 'bar',
+                data: {
+                    labels: weeklyData.labels,
+                    datasets: [{
+                        label: 'Screen Time (hours)',
+                        data: weeklyData.data,
+                        backgroundColor: 'rgba(92,138,138,0.7)',
+                        borderColor: '#5c8a8a',
+                        borderWidth: 0,
+                        borderRadius: 8,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(29,29,31,0.9)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            cornerRadius: 10,
+                            displayColors: false
+                        }
                     },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-        
-        const trendCtx = document.getElementById('trendChart').getContext('2d');
-        const trendChart = new Chart(trendCtx, {
-            type: 'line',
-            data: {
-                labels: [{% for week in weeks_data|reverse %}'{{ week.week_label }}'{% if not loop.last %},{% endif %}{% endfor %}],
-                datasets: [{
-                    label: 'Avg Daily Screen Time (hours)',
-                    data: [{% for week in weeks_data|reverse %}{{ (week.average_minutes / 60)|round(1) }}{% if not loop.last %},{% endif %}{% endfor %}],
-                    borderColor: '#6f42c1',
-                    backgroundColor: 'rgba(111, 66, 193, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointBackgroundColor: '#6f42c1',
-                    pointBorderColor: '#fff',
-                    pointHoverRadius: 7,
-                    pointRadius: 5,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { callback: (value) => value + 'h' },
-                        grid: { color: '#e9ecef' }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                callback: (value) => value + 'h',
+                                color: '#86868b'
+                            },
+                            grid: { color: '#e5e5e7', drawBorder: false }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#86868b' }
+                        }
                     },
-                    x: { grid: { display: false } }
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutCubic'
+                    }
                 }
-            }
-        });
+            });
 
-        {% endif %}
+            // Trend Chart with dynamic data
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            const trendData = {
+                labels: [{% for week in weeks_data|reverse %}'{{ week.week_label }}'{% if not loop.last %},{% endif %}{% endfor %}],
+                data: [{% for week in weeks_data|reverse %}{{ (week.average_minutes / 60)|round(1) }}{% if not loop.last %},{% endif %}{% endfor %}]
+            };
+            
+            trendChart = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: trendData.labels,
+                    datasets: [{
+                        label: 'Avg Daily Screen Time (hours)',
+                        data: trendData.data,
+                        borderColor: '#5c8a8a',
+                        backgroundColor: 'rgba(92,138,138,0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: '#5c8a8a',
+                        pointBorderColor: '#ffffff',
+                        pointHoverRadius: 8,
+                        pointRadius: 6,
+                        pointBorderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(29,29,31,0.9)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            cornerRadius: 10,
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                callback: (value) => value + 'h',
+                                color: '#86868b'
+                            },
+                            grid: { color: '#e5e5e7', drawBorder: false }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#86868b' }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutCubic'
+                    }
+                }
+            });
+
+            // Store data globally for chart toggles
+            window.chartData = { weeklyData, trendData };
+            
+            {% endif %}
+        }
+
+        // Chart toggle functions
+        function toggleWeeklyChart(type) {
+            const buttons = document.querySelectorAll('.chart-card:first-child .chart-controls .chart-toggle');
+            buttons[0].classList.toggle('active', type === 'bar');
+            buttons[1].classList.toggle('active', type === 'line');
+            
+            if (!window.chartData) return;
+            
+            weeklyChart.destroy();
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            
+            weeklyChart = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: window.chartData.weeklyData.labels,
+                    datasets: [{
+                        label: 'Screen Time (hours)',
+                        data: window.chartData.weeklyData.data,
+                        backgroundColor: type === 'bar' ? 'rgba(92,138,138,0.7)' : 'rgba(92,138,138,0.1)',
+                        borderColor: '#5c8a8a',
+                        borderWidth: type === 'line' ? 3 : 0,
+                        borderRadius: type === 'bar' ? 8 : 0,
+                        tension: type === 'line' ? 0.4 : 0,
+                        fill: type === 'line' ? true : false,
+                        pointBackgroundColor: type === 'line' ? '#5c8a8a' : undefined,
+                        pointBorderColor: type === 'line' ? '#ffffff' : undefined,
+                        pointRadius: type === 'line' ? 6 : undefined,
+                        pointBorderWidth: type === 'line' ? 3 : undefined
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(29,29,31,0.9)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            cornerRadius: 10,
+                            displayColors: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { 
+                                callback: (value) => value + 'h',
+                                color: '#86868b'
+                            },
+                            grid: { color: '#e5e5e7', drawBorder: false }
+                        },
+                        x: { 
+                            grid: { display: false },
+                            ticks: { color: '#86868b' }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeInOutCubic'
+                    }
+                }
+            });
+        }
+
+        function toggleTrendChart(showAverage) {
+            const buttons = document.querySelectorAll('.chart-card:last-child .chart-controls .chart-toggle');
+            buttons[0].classList.toggle('active', !showAverage);
+            buttons[1].classList.toggle('active', showAverage);
+            
+            if (!window.chartData) return;
+            
+            const datasets = [{
+                label: 'Avg Daily Screen Time (hours)',
+                data: window.chartData.trendData.data,
+                borderColor: '#5c8a8a',
+                backgroundColor: 'rgba(92,138,138,0.1)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#5c8a8a',
+                pointBorderColor: '#ffffff',
+                pointHoverRadius: 8,
+                pointRadius: 6,
+                pointBorderWidth: 3
+            }];
+            
+            if (showAverage) {
+                const average = window.chartData.trendData.data.reduce((a, b) => a + b) / window.chartData.trendData.data.length;
+                datasets.push({
+                    label: 'Average Line',
+                    data: new Array(window.chartData.trendData.data.length).fill(average),
+                    borderColor: '#86868b',
+                    backgroundColor: 'transparent',
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    tension: 0
+                });
+            }
+            
+            trendChart.data.datasets = datasets;
+            trendChart.update('active');
+        }
+
+        // Table sorting functionality
+        function sortTable(n) {
+            const table = document.getElementById('dataTable');
+            if (!table) return;
+            
+            const tbody = table.getElementsByTagName('tbody')[0];
+            const rows = Array.from(tbody.rows);
+            let switching = true;
+            let dir = 'asc';
+            let switchcount = 0;
+
+            while (switching) {
+                switching = false;
+                for (let i = 0; i < rows.length - 1; i++) {
+                    let shouldSwitch = false;
+                    const x = rows[i].getElementsByTagName('td')[n];
+                    const y = rows[i + 1].getElementsByTagName('td')[n];
+
+                    let xContent = x.textContent || x.innerText;
+                    let yContent = y.textContent || y.innerText;
+
+                    // Handle different column types
+                    if (n === 1) { // Screen time column
+                        xContent = parseScreenTime(xContent);
+                        yContent = parseScreenTime(yContent);
+                    } else if (n === 0 || n === 3) { // Date columns
+                        xContent = new Date(xContent);
+                        yContent = new Date(yContent);
+                    }
+
+                    if (dir === 'asc') {
+                        if (xContent > yContent) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    } else if (dir === 'desc') {
+                        if (xContent < yContent) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (shouldSwitch) {
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                    switchcount++;
+                } else {
+                    if (switchcount === 0 && dir === 'asc') {
+                        dir = 'desc';
+                        switching = true;
+                    }
+                }
+            }
+
+            // Update arrow indicators
+            const headers = table.getElementsByTagName('th');
+            for (let i = 0; i < headers.length; i++) {
+                if (i === n) {
+                    headers[i].style.backgroundColor = '#e5e5e7';
+                    const headerText = headers[i].textContent.replace(/[↑↓↕]/, '').trim();
+                    headers[i].textContent = headerText + (dir === 'asc' ? ' ↑' : ' ↓');
+                } else {
+                    headers[i].style.backgroundColor = '#fafafa';
+                    const headerText = headers[i].textContent.replace(/[↑↓↕]/, '').trim();
+                    headers[i].innerHTML = headerText + '<span style="float: right; color: #a1a1a6; font-size: 0.8rem;">↕</span>';
+                }
+            }
+        }
+
+        function parseScreenTime(timeStr) {
+            const match = timeStr.match(/(\d+)h\s*(\d+)m|(\d+)h|(\d+)m/);
+            if (!match) return 0;
+            const hours = parseInt(match[1] || match[3] || 0);
+            const minutes = parseInt(match[2] || match[4] || 0);
+            return hours * 60 + minutes;
+        }
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            
+            // Add loading animation to time bars
+            setTimeout(() => {
+                const timeBars = document.querySelectorAll('.time-bar');
+                timeBars.forEach(bar => {
+                    const width = bar.style.width;
+                    bar.style.width = '0%';
+                    setTimeout(() => {
+                        bar.style.width = width;
+                    }, 100);
+                });
+            }, 500);
+        });
     </script>
 </body>
 </html>
